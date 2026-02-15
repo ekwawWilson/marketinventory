@@ -14,6 +14,13 @@ export default function ReportsPage() {
 
   const reports = [
     {
+      title: 'End of Day Report',
+      description: 'Complete daily summary of sales, payments, purchases, and inventory',
+      icon: '📋',
+      href: '/reports/end-of-day',
+      color: 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100',
+    },
+    {
       title: 'Sales Reports',
       description: 'View sales performance, trends, and statistics',
       icon: '💰',

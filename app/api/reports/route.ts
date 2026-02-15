@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/tenant/requireTenant'
 import { prisma } from '@/lib/db/prisma'
+import { hasPermission, type Role } from '@/lib/permissions/rbac'
 
 /**
  * Comprehensive Reports API
@@ -15,11 +16,12 @@ import { prisma } from '@/lib/db/prisma'
  * - creditors: Supplier balances (accounts payable)
  * - profit: Profit/loss calculations
  * - dashboard: Combined summary for dashboard
+ * - end-of-day: Comprehensive daily summary
  */
 
 export async function GET(req: Request) {
   try {
-    const { error, tenantId } = await requireTenant()
+    const { error, tenantId, user } = await requireTenant()
     if (error) return error!
 
     const { searchParams } = new URL(req.url)
@@ -47,6 +49,8 @@ export async function GET(req: Request) {
         return await profitReport(tenantId, dateFilter)
       case 'dashboard':
         return await dashboardReport(tenantId)
+      case 'end-of-day':
+        return await endOfDayReport(tenantId, dateFilter, user?.role as Role)
       default:
         return NextResponse.json(
           { error: 'Invalid report type' },
@@ -337,4 +341,187 @@ async function dashboardReport(tenantId: string) {
       },
     },
   })
+}
+
+/**
+ * End of Day Report (Comprehensive Daily Summary)
+ */
+async function endOfDayReport(tenantId: string, dateFilter: any, userRole?: Role) {
+  const dayWhere: any = { tenantId }
+  if (Object.keys(dateFilter).length > 0) {
+    dayWhere.createdAt = dateFilter
+  }
+
+  const [
+    sales,
+    purchases,
+    customerPayments,
+    supplierPayments,
+    stockAdjustmentCount,
+    lowStockItems,
+    outOfStockItems,
+    topDebtors,
+    totalDebtAggregate,
+  ] = await Promise.all([
+    prisma.sale.findMany({
+      where: dayWhere,
+      include: {
+        customer: { select: { name: true } },
+        items: {
+          include: {
+            item: { select: { name: true, costPrice: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.purchase.findMany({
+      where: dayWhere,
+      include: {
+        supplier: { select: { name: true } },
+        items: {
+          include: {
+            item: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.customerPayment.findMany({ where: dayWhere }),
+    prisma.supplierPayment.findMany({ where: dayWhere }),
+    prisma.stockAdjustment.count({ where: dayWhere }),
+    prisma.item.findMany({
+      where: { tenantId, quantity: { gt: 0, lte: 10 } },
+      select: { id: true, name: true, quantity: true },
+      orderBy: { quantity: 'asc' },
+    }),
+    prisma.item.findMany({
+      where: { tenantId, quantity: { equals: 0 } },
+      select: { id: true, name: true, quantity: true },
+    }),
+    prisma.customer.findMany({
+      where: { tenantId, balance: { gt: 0 } },
+      orderBy: { balance: 'desc' },
+      take: 5,
+      select: { id: true, name: true, phone: true, balance: true },
+    }),
+    prisma.customer.aggregate({
+      where: { tenantId, balance: { gt: 0 } },
+      _sum: { balance: true },
+      _count: true,
+    }),
+  ])
+
+  // Sales Summary
+  const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0)
+  const cashSales = sales.filter(s => s.paymentType === 'CASH')
+  const creditSales = sales.filter(s => s.paymentType === 'CREDIT')
+
+  // Top 5 selling items
+  const itemSalesMap: Record<string, { name: string; quantity: number; revenue: number }> = {}
+  for (const sale of sales) {
+    for (const si of sale.items) {
+      const key = si.itemId
+      if (!itemSalesMap[key]) {
+        itemSalesMap[key] = { name: si.item.name, quantity: 0, revenue: 0 }
+      }
+      itemSalesMap[key].quantity += si.quantity
+      itemSalesMap[key].revenue += si.price * si.quantity
+    }
+  }
+  const topSellingItems = Object.values(itemSalesMap)
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5)
+
+  // Cash & Payments
+  const cashPayments = customerPayments.filter(p => p.method === 'CASH').reduce((s, p) => s + p.amount, 0)
+  const momoPayments = customerPayments.filter(p => p.method === 'MOMO').reduce((s, p) => s + p.amount, 0)
+  const bankPayments = customerPayments.filter(p => p.method === 'BANK').reduce((s, p) => s + p.amount, 0)
+  const totalCustomerPayments = customerPayments.reduce((s, p) => s + p.amount, 0)
+  const newCreditIssued = creditSales.reduce((s, sale) => s + (sale.totalAmount - sale.paidAmount), 0)
+
+  // Purchases
+  const totalPurchaseAmount = purchases.reduce((sum, p) => sum + p.totalAmount, 0)
+  const cashPurchases = purchases.filter(p => p.paymentType === 'CASH')
+  const creditPurchases = purchases.filter(p => p.paymentType === 'CREDIT')
+  const restockedItems: { name: string; quantity: number }[] = []
+  for (const purchase of purchases) {
+    for (const pi of purchase.items) {
+      restockedItems.push({ name: pi.item.name, quantity: pi.quantity })
+    }
+  }
+  const totalSupplierPayments = supplierPayments.reduce((s, p) => s + p.amount, 0)
+
+  // Profit
+  let totalCOGS = 0
+  for (const sale of sales) {
+    for (const si of sale.items) {
+      totalCOGS += si.item.costPrice * si.quantity
+    }
+  }
+  const grossProfit = totalRevenue - totalCOGS
+  const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0
+
+  // Build response
+  const response: any = {
+    type: 'end-of-day',
+    date: dateFilter.gte || null,
+
+    salesSummary: {
+      totalCount: sales.length,
+      totalRevenue,
+      cashSalesCount: cashSales.length,
+      cashSalesAmount: cashSales.reduce((s, sale) => s + sale.totalAmount, 0),
+      creditSalesCount: creditSales.length,
+      creditSalesAmount: creditSales.reduce((s, sale) => s + sale.totalAmount, 0),
+      averageSaleValue: sales.length > 0 ? totalRevenue / sales.length : 0,
+      topSellingItems,
+    },
+
+    cashAndPayments: {
+      cashSalesReceived: cashSales.reduce((s, sale) => s + sale.paidAmount, 0),
+      customerPaymentsByMethod: { CASH: cashPayments, MOMO: momoPayments, BANK: bankPayments },
+      totalCustomerPayments,
+      newCreditIssued,
+    },
+
+    purchasesSummary: {
+      totalCount: purchases.length,
+      totalAmount: totalPurchaseAmount,
+      cashPurchasesCount: cashPurchases.length,
+      cashPurchasesAmount: cashPurchases.reduce((s, p) => s + p.totalAmount, 0),
+      creditPurchasesCount: creditPurchases.length,
+      creditPurchasesAmount: creditPurchases.reduce((s, p) => s + p.totalAmount, 0),
+      restockedItems,
+      totalSupplierPayments,
+    },
+
+    inventoryAlerts: {
+      lowStockItems,
+      lowStockCount: lowStockItems.length,
+      outOfStockItems,
+      outOfStockCount: outOfStockItems.length,
+      stockAdjustmentsCount: stockAdjustmentCount,
+    },
+
+    creditAndDebt: {
+      totalOutstandingDebt: totalDebtAggregate._sum.balance || 0,
+      totalDebtorsCount: totalDebtAggregate._count,
+      newDebtToday: newCreditIssued,
+      debtCollectedToday: totalCustomerPayments,
+      topDebtors,
+    },
+  }
+
+  // Only include profit if user has permission
+  if (userRole && hasPermission(userRole, 'view_profit_margins')) {
+    response.profitSummary = {
+      totalRevenue,
+      totalCOGS,
+      grossProfit,
+      profitMargin: Number(profitMargin.toFixed(2)),
+    }
+  }
+
+  return NextResponse.json(response)
 }
