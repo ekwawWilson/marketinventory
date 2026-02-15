@@ -1,0 +1,600 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { useUser } from '@/hooks/useUser'
+
+/**
+ * Users & Permissions Page — PETROS Business Management Mini
+ * OWNER only: manage team accounts, assign granular roles
+ */
+
+type RoleKey = 'OWNER' | 'STORE_MANAGER' | 'CASHIER' | 'INVENTORY_MANAGER' | 'ACCOUNTANT' | 'STAFF'
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: RoleKey
+  createdAt: string
+}
+
+const ROLE_INFO: Record<RoleKey, {
+  label: string
+  shortDesc: string
+  color: string
+  badgeColor: string
+  avatarColor: string
+  icon: string
+}> = {
+  OWNER: {
+    label: 'Owner',
+    shortDesc: 'Full access to all features',
+    color: 'bg-purple-50 border-purple-200',
+    badgeColor: 'bg-purple-100 text-purple-800',
+    avatarColor: 'from-purple-500 to-purple-700',
+    icon: '👑',
+  },
+  STORE_MANAGER: {
+    label: 'Store Manager',
+    shortDesc: 'All operations, no user/settings management',
+    color: 'bg-indigo-50 border-indigo-200',
+    badgeColor: 'bg-indigo-100 text-indigo-800',
+    avatarColor: 'from-indigo-500 to-indigo-700',
+    icon: '🏪',
+  },
+  CASHIER: {
+    label: 'Cashier',
+    shortDesc: 'Sales & customer payments only',
+    color: 'bg-green-50 border-green-200',
+    badgeColor: 'bg-green-100 text-green-800',
+    avatarColor: 'from-green-500 to-green-700',
+    icon: '🧾',
+  },
+  INVENTORY_MANAGER: {
+    label: 'Inventory Manager',
+    shortDesc: 'Stock, items & purchases management',
+    color: 'bg-amber-50 border-amber-200',
+    badgeColor: 'bg-amber-100 text-amber-800',
+    avatarColor: 'from-amber-500 to-amber-600',
+    icon: '📦',
+  },
+  ACCOUNTANT: {
+    label: 'Accountant',
+    shortDesc: 'Reports, payments & balance adjustments',
+    color: 'bg-pink-50 border-pink-200',
+    badgeColor: 'bg-pink-100 text-pink-800',
+    avatarColor: 'from-pink-500 to-pink-700',
+    icon: '📊',
+  },
+  STAFF: {
+    label: 'Staff',
+    shortDesc: 'Basic sales, purchases & inventory',
+    color: 'bg-blue-50 border-blue-200',
+    badgeColor: 'bg-blue-100 text-blue-800',
+    avatarColor: 'from-blue-500 to-blue-700',
+    icon: '👤',
+  },
+}
+
+// Permission display rows for the matrix
+const PERMISSION_ROWS: { label: string; key: string }[] = [
+  { key: 'manage_users', label: 'Manage users' },
+  { key: 'manage_settings', label: 'System settings' },
+  { key: 'view_audit_logs', label: 'View audit logs' },
+  { key: 'view_all_reports', label: 'All reports' },
+  { key: 'view_profit_margins', label: 'Profit margins' },
+  { key: 'void_sales', label: 'Void sales' },
+  { key: 'void_purchases', label: 'Void purchases' },
+  { key: 'create_sale', label: 'Create sales' },
+  { key: 'create_purchase', label: 'Create purchases' },
+  { key: 'create_items', label: 'Create items' },
+  { key: 'update_items', label: 'Update items' },
+  { key: 'delete_items', label: 'Delete items' },
+  { key: 'adjust_stock', label: 'Adjust stock' },
+  { key: 'manage_manufacturers', label: 'Manufacturers' },
+  { key: 'create_customers', label: 'Create customers' },
+  { key: 'update_customers', label: 'Update customers' },
+  { key: 'delete_customers', label: 'Delete customers' },
+  { key: 'create_suppliers', label: 'Create suppliers' },
+  { key: 'update_suppliers', label: 'Update suppliers' },
+  { key: 'delete_suppliers', label: 'Delete suppliers' },
+  { key: 'record_payments', label: 'Record payments' },
+  { key: 'adjust_balances', label: 'Adjust balances' },
+  { key: 'process_returns', label: 'Process returns' },
+  { key: 'view_basic_reports', label: 'Basic reports' },
+  { key: 'view_items', label: 'View items' },
+  { key: 'view_customers', label: 'View customers' },
+  { key: 'view_suppliers', label: 'View suppliers' },
+]
+
+const PERMISSIONS_MAP: Record<RoleKey, string[]> = {
+  OWNER: PERMISSION_ROWS.map(r => r.key),
+  STORE_MANAGER: [
+    'view_audit_logs', 'view_all_reports', 'view_profit_margins',
+    'void_sales', 'void_purchases', 'record_payments', 'adjust_balances',
+    'create_items', 'update_items', 'delete_items', 'adjust_stock', 'manage_manufacturers',
+    'create_customers', 'update_customers', 'delete_customers',
+    'create_suppliers', 'update_suppliers', 'delete_suppliers',
+    'create_sale', 'create_purchase', 'process_returns',
+    'view_basic_reports', 'view_items', 'view_customers', 'view_suppliers',
+  ],
+  CASHIER: [
+    'create_sale', 'record_payments',
+    'create_customers', 'update_customers',
+    'view_basic_reports', 'view_items', 'view_customers', 'view_suppliers',
+  ],
+  INVENTORY_MANAGER: [
+    'create_items', 'update_items', 'adjust_stock', 'manage_manufacturers',
+    'create_purchase', 'create_suppliers', 'update_suppliers',
+    'view_basic_reports', 'view_items', 'view_customers', 'view_suppliers',
+  ],
+  ACCOUNTANT: [
+    'view_audit_logs', 'view_all_reports', 'view_profit_margins',
+    'record_payments', 'adjust_balances',
+    'view_basic_reports', 'view_items', 'view_customers', 'view_suppliers',
+  ],
+  STAFF: [
+    'create_sale', 'create_purchase', 'record_payments',
+    'update_items',
+    'create_customers', 'update_customers',
+    'create_suppliers', 'update_suppliers',
+    'view_basic_reports', 'view_items', 'view_customers', 'view_suppliers',
+  ],
+}
+
+const RECOMMENDED_ROLES: { role: RoleKey; title: string; when: string; warning?: string }[] = [
+  {
+    role: 'CASHIER',
+    title: 'For front-desk / till staff',
+    when: 'Staff who only process sales and accept customer payments.',
+    warning: 'Cannot view reports, delete records, or manage inventory.',
+  },
+  {
+    role: 'INVENTORY_MANAGER',
+    title: 'For warehouse / stock staff',
+    when: 'Staff who receive goods and manage stock levels but should not handle sales cash.',
+    warning: 'Cannot see profit margins or financial reports.',
+  },
+  {
+    role: 'ACCOUNTANT',
+    title: 'For finance / accounts staff',
+    when: 'Staff who reconcile payments, review reports and adjust balances — read-heavy role.',
+    warning: 'Cannot create sales or purchases directly.',
+  },
+  {
+    role: 'STORE_MANAGER',
+    title: 'For trusted senior staff',
+    when: 'Senior employees who run day-to-day operations fully but should not add users or change system settings.',
+  },
+  {
+    role: 'STAFF',
+    title: 'For general staff (legacy)',
+    when: 'All-round basic access: sales, purchases and inventory updates. Use more specific roles when possible.',
+  },
+]
+
+const ALL_ROLES: RoleKey[] = ['OWNER', 'STORE_MANAGER', 'CASHIER', 'INVENTORY_MANAGER', 'ACCOUNTANT', 'STAFF']
+const ASSIGNABLE_ROLES: RoleKey[] = ['STORE_MANAGER', 'CASHIER', 'INVENTORY_MANAGER', 'ACCOUNTANT', 'STAFF']
+
+type Tab = 'team' | 'matrix' | 'guide'
+
+export default function UsersPage() {
+  const router = useRouter()
+  const { user: currentUser, isOwner, isLoading } = useUser()
+  const [users, setUsers] = useState<User[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [tab, setTab] = useState<Tab>('team')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'STAFF' as RoleKey,
+  })
+
+  useEffect(() => {
+    if (!isLoading && !isOwner) {
+      router.push('/dashboard')
+      return
+    }
+    fetchUsers()
+  }, [isOwner, isLoading])
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users')
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setUsers(data)
+    } catch {
+      setError('Failed to load users')
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Failed to add user'); return }
+      setSuccess(`User "${form.name}" added successfully!`)
+      setForm({ name: '', email: '', password: '', role: 'STAFF' })
+      setShowAddForm(false)
+      fetchUsers()
+    } catch {
+      setError('Failed to add user')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Remove "${userName}" from your team? They will no longer be able to log in.`)) return
+    setDeletingId(userId)
+    try {
+      const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed')
+      setSuccess(`User "${userName}" removed successfully.`)
+      fetchUsers()
+    } catch {
+      setError('Failed to remove user')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleChangeRole = async (userId: string, newRole: RoleKey) => {
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setSuccess('Role updated successfully')
+      fetchUsers()
+    } catch {
+      setError('Failed to update role')
+    }
+  }
+
+  if (isLoading || !isOwner) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout>
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Users & Permissions</h1>
+            <p className="text-gray-500 mt-1">Manage team access with granular role-based control</p>
+          </div>
+          <button
+            onClick={() => { setShowAddForm(true); setError(''); setSuccess('') }}
+            className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md text-sm"
+          >
+            <span className="text-lg leading-none">+</span>
+            Add Team Member
+          </button>
+        </div>
+
+        {/* Alerts */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+            <span>⚠</span> {error}
+            <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+            <span>✓</span> {success}
+            <button onClick={() => setSuccess('')} className="ml-auto text-green-400 hover:text-green-600">✕</button>
+          </div>
+        )}
+
+        {/* Add User Form */}
+        {showAddForm && (
+          <div className="bg-white rounded-2xl border-2 border-blue-100 shadow-lg overflow-hidden">
+            <div className="bg-blue-600 px-6 py-4">
+              <h2 className="text-lg font-bold text-white">Add New Team Member</h2>
+              <p className="text-blue-200 text-sm mt-0.5">Fill in the details and assign a role</p>
+            </div>
+            <form onSubmit={handleAddUser} className="p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g. Ama Serwaa"
+                    required
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address *</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    placeholder="ama@example.com"
+                    required
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password *</label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    placeholder="Min. 8 characters"
+                    required
+                    minLength={8}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
+                  <select
+                    value={form.role}
+                    onChange={e => setForm({ ...form, role: e.target.value as RoleKey })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-base bg-white"
+                  >
+                    {ALL_ROLES.map(r => (
+                      <option key={r} value={r}>
+                        {ROLE_INFO[r].icon} {ROLE_INFO[r].label} — {ROLE_INFO[r].shortDesc}
+                      </option>
+                    ))}
+                  </select>
+                  {form.role && (
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      {ROLE_INFO[form.role].shortDesc}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors">
+                  Add User
+                </button>
+                <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {([['team', 'Team Members'], ['matrix', 'Permissions Matrix'], ['guide', 'Role Guide']] as [Tab, string][]).map(([t, label]) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB: Team Members */}
+        {tab === 'team' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Team Members ({users.length})</h2>
+            </div>
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : users.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <span className="text-4xl mb-3">👥</span>
+                <p className="font-semibold">No team members yet</p>
+                <p className="text-sm mt-1">Add your first staff member above</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {users.map((u) => {
+                  const info = ROLE_INFO[u.role] ?? ROLE_INFO.STAFF
+                  const isCurrentUser = u.id === currentUser?.id
+                  return (
+                    <div key={u.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                      {/* Avatar + Info */}
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0 bg-gradient-to-br ${info.avatarColor}`}>
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-gray-900 text-base">{u.name}</p>
+                            {isCurrentUser && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">You</span>
+                            )}
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${info.badgeColor}`}>
+                              {info.icon} {info.label}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-0.5">{u.email}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Joined {new Date(u.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      {!isCurrentUser && (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={u.role}
+                            onChange={e => handleChangeRole(u.id, e.target.value as RoleKey)}
+                            className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:border-blue-500 focus:outline-none bg-white"
+                          >
+                            {ALL_ROLES.map(r => (
+                              <option key={r} value={r}>{ROLE_INFO[r].label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.name)}
+                            disabled={deletingId === u.id}
+                            className="px-3 py-2 bg-red-50 text-red-600 border-2 border-red-100 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === u.id ? '...' : 'Remove'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Permissions Matrix */}
+        {tab === 'matrix' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Permissions Matrix</h2>
+              <p className="text-sm text-gray-500 mt-0.5">What each role can do across the system</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase min-w-44">Permission</th>
+                    {ALL_ROLES.map(r => (
+                      <th key={r} className="px-3 py-3 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-base">{ROLE_INFO[r].icon}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${ROLE_INFO[r].badgeColor}`}>
+                            {ROLE_INFO[r].label}
+                          </span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {PERMISSION_ROWS.map(({ key, label }) => (
+                    <tr key={key} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 text-gray-700 font-medium text-xs">{label}</td>
+                      {ALL_ROLES.map(r => {
+                        const allowed = PERMISSIONS_MAP[r].includes(key)
+                        return (
+                          <td key={r} className="px-3 py-2.5 text-center">
+                            {allowed ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 bg-green-100 rounded-full text-green-700 text-xs font-bold">✓</span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 bg-gray-100 rounded-full text-gray-300 text-xs">–</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Role Guide (Recommended Roles) */}
+        {tab === 'guide' && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-medium flex items-start gap-2">
+              <span className="text-lg shrink-0">💡</span>
+              <span>
+                Assign the <strong>most restrictive role</strong> that still allows the user to do their job.
+                This limits the risk of accidental data changes or financial mismanagement.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {RECOMMENDED_ROLES.map(({ role, title, when, warning }) => {
+                const info = ROLE_INFO[role]
+                return (
+                  <div key={role} className={`rounded-xl border p-5 space-y-2 ${info.color}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{info.icon}</span>
+                      <div>
+                        <h3 className="font-bold text-gray-900">{title}</h3>
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${info.badgeColor}`}>
+                          {info.label}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700">{when}</p>
+                    {warning && (
+                      <div className="flex items-start gap-1.5 text-xs text-gray-500 bg-white/70 rounded-lg px-3 py-2">
+                        <span className="shrink-0">⚠</span>
+                        <span>{warning}</span>
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      <p className="text-xs font-semibold text-gray-500 mb-1.5">Key permissions:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {PERMISSIONS_MAP[role].slice(0, 6).map(p => (
+                          <span key={p} className="text-xs bg-white/80 border border-gray-200 px-2 py-0.5 rounded-md text-gray-600">
+                            {p.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                        {PERMISSIONS_MAP[role].length > 6 && (
+                          <span className="text-xs text-gray-400 px-1 py-0.5">+{PERMISSIONS_MAP[role].length - 6} more</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Mismanagement prevention tips */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900">Preventing Mismanagement</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { icon: '🚫', title: 'Void & Delete Controls', tip: 'Only Owners and Store Managers can void sales/purchases or delete records. Assign these roles carefully.' },
+                  { icon: '💰', title: 'Financial Visibility', tip: 'Restrict profit margins to Owners, Store Managers and Accountants only. Cashiers do not see margins.' },
+                  { icon: '📋', title: 'Separate Roles by Job', tip: 'Give Cashiers the Cashier role, not Staff. More specific roles mean less accidental access to sensitive actions.' },
+                  { icon: '👥', title: 'Limit Owner Accounts', tip: 'Keep the number of Owner accounts to a minimum. Use Store Manager for trusted senior staff instead.' },
+                ].map(({ icon, title, tip }) => (
+                  <div key={title} className="flex gap-3 p-4 bg-gray-50 rounded-xl">
+                    <span className="text-2xl shrink-0">{icon}</span>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{tip}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </AppLayout>
+  )
+}

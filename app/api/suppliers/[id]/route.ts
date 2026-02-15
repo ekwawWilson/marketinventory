@@ -1,0 +1,290 @@
+import { NextResponse } from 'next/server'
+import { requireTenant } from '@/lib/tenant/requireTenant'
+import { requirePermission } from '@/lib/permissions/rbac'
+import { prisma } from '@/lib/db/prisma'
+
+/**
+ * Supplier Detail API Routes
+ *
+ * GET /api/suppliers/[id] - Get supplier by ID with transaction history
+ * PUT /api/suppliers/[id] - Update supplier
+ * DELETE /api/suppliers/[id] - Delete supplier
+ */
+
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
+/**
+ * GET /api/suppliers/[id]
+ * Get a specific supplier with transaction history
+ */
+export async function GET(req: Request, { params }: RouteParams) {
+  try {
+    const { error, tenantId } = await requireTenant()
+    if (error) return error!
+
+    const { id } = await params
+
+    const { searchParams } = new URL(req.url)
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    const purchasesWhere: any = {}
+    if (startDate || endDate) {
+      purchasesWhere.createdAt = {}
+      if (startDate) purchasesWhere.createdAt.gte = new Date(startDate)
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        purchasesWhere.createdAt.lte = end
+      }
+    }
+
+    const paymentsWhere: any = { supplierId: id, tenantId }
+    if (startDate || endDate) {
+      paymentsWhere.createdAt = {}
+      if (startDate) paymentsWhere.createdAt.gte = new Date(startDate)
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        paymentsWhere.createdAt.lte = end
+      }
+    }
+
+    const [supplier, payments] = await Promise.all([
+      prisma.supplier.findFirst({
+        where: { id, tenantId },
+        include: {
+          purchases: {
+            where: purchasesWhere,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              items: {
+                include: {
+                  item: { select: { name: true, manufacturer: { select: { name: true } } } },
+                },
+              },
+            },
+          },
+          _count: { select: { purchases: true } },
+        },
+      }),
+      prisma.supplierPayment.findMany({
+        where: paymentsWhere,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
+
+    if (!supplier) {
+      return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
+    }
+
+    const totalPurchases = supplier.purchases.reduce((sum, p) => sum + p.totalAmount, 0)
+    const totalPaid = supplier.purchases.reduce((sum, p) => sum + p.paidAmount, 0)
+    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
+
+    return NextResponse.json({
+      ...supplier,
+      payments,
+      summary: {
+        totalPurchases,
+        totalPaid,
+        totalPayments,
+        currentBalance: supplier.balance,
+      },
+    })
+  } catch (err) {
+    console.error('Failed to fetch supplier:', err)
+    return NextResponse.json(
+      { error: 'Failed to fetch supplier' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PUT /api/suppliers/[id]
+ * Update a supplier
+ * Requires: update_suppliers permission
+ * Note: Balance cannot be updated directly (updated through purchases/payments)
+ */
+export async function PUT(req: Request, { params }: RouteParams) {
+  try {
+    const { error, tenantId, user } = await requireTenant()
+    if (error) return error!
+
+    // Check permission
+    const { authorized, error: permError } = requirePermission(
+      user!.role,
+      'update_suppliers'
+    )
+    if (!authorized) return permError!
+
+    const { id } = await params
+    const body = await req.json()
+
+    // Check supplier exists and belongs to tenant
+    const existing = await prisma.supplier.findFirst({
+      where: { id, tenantId: tenantId! },
+    })
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Supplier not found' },
+        { status: 404 }
+      )
+    }
+
+    // Validate
+    if (body.name !== undefined && (!body.name || typeof body.name !== 'string')) {
+      return NextResponse.json(
+        { error: 'Supplier name must be a non-empty string' },
+        { status: 400 }
+      )
+    }
+
+    // Prevent direct balance updates
+    if (body.balance !== undefined) {
+      return NextResponse.json(
+        { error: 'Cannot update balance directly. Use purchases or payments.' },
+        { status: 400 }
+      )
+    }
+
+    // Check for duplicate name or phone (excluding current supplier)
+    if (body.name || body.phone) {
+      const duplicate = await prisma.supplier.findFirst({
+        where: {
+          tenantId,
+          OR: [
+            ...(body.name
+              ? [
+                  {
+                    name: {
+                      equals: body.name.trim(),
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                ]
+              : []),
+            ...(body.phone
+              ? [
+                  {
+                    phone: body.phone.trim(),
+                  },
+                ]
+              : []),
+          ],
+          id: { not: id },
+        },
+      })
+
+      if (duplicate) {
+        return NextResponse.json(
+          { error: 'A supplier with this name or phone already exists' },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Update supplier
+    const supplier = await prisma.supplier.update({
+      where: { id },
+      data: {
+        ...(body.name && { name: body.name.trim() }),
+        ...(body.phone !== undefined && { phone: body.phone ? body.phone.trim() : null }),
+      },
+      include: {
+        _count: {
+          select: { purchases: true },
+        },
+      },
+    })
+
+    return NextResponse.json(supplier)
+  } catch (err) {
+    console.error('Failed to update supplier:', err)
+    return NextResponse.json(
+      { error: 'Failed to update supplier' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/suppliers/[id]
+ * Delete a supplier
+ * Requires: delete_suppliers permission
+ * Note: Cannot delete if supplier has outstanding balance or purchases
+ */
+export async function DELETE(req: Request, { params }: RouteParams) {
+  try {
+    const { error, tenantId, user } = await requireTenant()
+    if (error) return error!
+
+    // Check permission
+    const { authorized, error: permError } = requirePermission(
+      user!.role,
+      'delete_suppliers'
+    )
+    if (!authorized) return permError!
+
+    const { id } = await params
+
+    // Check supplier exists and belongs to tenant
+    const supplier = await prisma.supplier.findFirst({
+      where: { id, tenantId: tenantId! },
+      include: {
+        _count: {
+          select: { purchases: true },
+        },
+      },
+    })
+
+    if (!supplier) {
+      return NextResponse.json(
+        { error: 'Supplier not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if supplier has outstanding balance
+    if (supplier.balance > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete supplier with outstanding balance',
+          balance: supplier.balance,
+        },
+        { status: 409 }
+      )
+    }
+
+    // Check if supplier has purchase history
+    if (supplier._count.purchases > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete supplier with purchase history',
+          purchasesCount: supplier._count.purchases,
+        },
+        { status: 409 }
+      )
+    }
+
+    // Delete supplier
+    await prisma.supplier.delete({
+      where: { id },
+    })
+
+    return NextResponse.json(
+      { message: 'Supplier deleted successfully' },
+      { status: 200 }
+    )
+  } catch (err) {
+    console.error('Failed to delete supplier:', err)
+    return NextResponse.json(
+      { error: 'Failed to delete supplier' },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// ENUMS
+// =====================
+
+enum Role {
+  OWNER
+  STORE_MANAGER
+  CASHIER
+  INVENTORY_MANAGER
+  ACCOUNTANT
+  STAFF
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum PaymentType {
+  CASH
+  CREDIT
+}
+
+enum PaymentMethod {
+  CASH
+  MOMO
+  BANK
+}
+
+enum StockAdjustmentType {
+  INCREASE
+  DECREASE
+}
+
+enum ReturnType {
+  CASH
+  CREDIT
+  EXCHANGE
+}
+
+// =====================
+// CORE MULTI-TENANT
+// =====================
+
+model Tenant {
+  id                           String   @id @default(uuid())
+  name                         String
+  phone                        String?
+  status                       TenantStatus @default(TRIAL)
+  users                        User[]
+  createdAt                    DateTime @default(now())
+
+  // Receipt Settings
+  showManufacturerOnReceipt    Boolean  @default(true)
+  receiptPrinterWidth          String   @default("80mm")  // "58mm" or "80mm"
+
+  // Unit System
+  // When enabled, items have a unit name (e.g. "carton") and piecesPerUnit (e.g. 12).
+  // Stock is tracked in the base unit (cartons). Quantities can be fractional (1.5 cartons).
+  useUnitSystem                Boolean  @default(false)
+
+  // Pricing Tiers — when enabled, items carry extra price tiers selectable at sale time
+  enableRetailPrice            Boolean  @default(false)
+  enableWholesalePrice         Boolean  @default(false)
+  enablePromoPrice             Boolean  @default(false)
+
+  // Discounts — when enabled, cashier can apply a discount (% or fixed amount) per sale
+  enableDiscounts              Boolean  @default(false)
+}
+
+// =====================
+// USERS & AUTH
+// =====================
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// MANUFACTURERS
+// =====================
+
+model Manufacturer {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  items     Item[]
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// ITEMS & INVENTORY
+// =====================
+
+model Item {
+  id              String @id @default(uuid())
+  tenantId        String
+  manufacturerId  String
+  manufacturer    Manufacturer @relation(fields: [manufacturerId], references: [id])
+  name            String
+  quantity        Float    @default(0)   // Float supports fractional units (e.g. 1.5 cartons)
+  costPrice       Float
+  sellingPrice    Float
+  retailPrice     Float?   // optional retail price tier
+  wholesalePrice  Float?   // optional wholesale price tier
+  promoPrice      Float?   // optional promotional price tier
+  createdAt       DateTime @default(now())
+
+  // Unit System fields (only meaningful when tenant.useUnitSystem = true)
+  unitName        String?  @default("unit")   // e.g. "carton", "bag", "box"
+  piecesPerUnit   Int?     @default(1)         // e.g. 12 pieces per carton
+
+  saleItems      SaleItem[]
+  purchaseItems  PurchaseItem[]
+}
+
+
+// =====================
+// CUSTOMERS (DEBTORS)
+// =====================
+
+model Customer {
+  id        String @id @default(uuid())
+  tenantId  String
+  name      String
+  phone     String?
+  balance   Float @default(0)
+  sales     Sale[]
+}
+
+// =====================
+// SUPPLIERS (CREDITORS)
+// =====================
+
+model Supplier {
+  id        String @id @default(uuid())
+  tenantId  String
+  name      String
+  phone     String?
+  balance   Float @default(0)
+  purchases Purchase[]
+}
+
+// =====================
+// SALES
+// =====================
+
+model Sale {
+  id          String @id @default(uuid())
+  tenantId    String
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  totalAmount Float
+  paidAmount  Float
+  paymentType PaymentType
+  createdAt   DateTime @default(now())
+  items       SaleItem[]
+}
+
+model SaleItem {
+  id        String @id @default(uuid())
+  saleId   String
+  sale     Sale   @relation(fields: [saleId], references: [id])
+  itemId   String
+  item     Item   @relation(fields: [itemId], references: [id])
+  quantity Float   // Float supports fractional units
+  price    Float
+}
+
+
+
+// =====================
+// PURCHASES
+// =====================
+model Purchase {
+  id          String @id @default(uuid())
+  tenantId    String
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  totalAmount Float
+  paidAmount  Float
+  paymentType PaymentType
+  createdAt   DateTime @default(now())
+  items       PurchaseItem[] // relation
+}
+
+model PurchaseItem {
+  id          String @id @default(uuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id])
+  quantity    Float    // Float supports fractional units
+  costPrice   Float
+}
+
+// =====================
+// PAYMENTS
+// =====================
+
+model CustomerPayment {
+  id         String @id @default(uuid())
+  tenantId   String
+  customerId String
+  amount     Float
+  method     PaymentMethod
+  createdAt  DateTime @default(now())
+}
+
+model SupplierPayment {
+  id         String @id @default(uuid())
+  tenantId   String
+  supplierId String
+  amount     Float
+  method     PaymentMethod
+  createdAt  DateTime @default(now())
+}
+
+// =====================
+// RETURNS
+// =====================
+
+model CustomerReturn {
+  id        String @id @default(uuid())
+  tenantId  String
+  saleId    String
+  itemId    String
+  quantity  Float
+  type      ReturnType
+  amount    Float
+  createdAt DateTime @default(now())
+}
+
+model SupplierReturn {
+  id        String @id @default(uuid())
+  tenantId  String
+  purchaseId String
+  itemId    String
+  quantity  Float
+  type      ReturnType
+  amount    Float
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// STOCK ADJUSTMENTS
+// =====================
+
+model StockAdjustment {
+  id        String @id @default(uuid())
+  tenantId  String
+  itemId    String
+  type      StockAdjustmentType
+  quantity  Float
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// AUDIT LOGS
+// =====================
+
+model AuditLog {
+  id        String @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String
+  entity    String
+  createdAt DateTime @default(now())
+}
