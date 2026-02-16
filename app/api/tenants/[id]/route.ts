@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/tenant/requireTenant'
 import { requireOwner } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
-import { TenantStatus } from '@/lib/generated/prisma/client'
+import { TenantStatus } from '@prisma/client'
 
 /**
  * Tenant Management API

@@ -22,7 +22,7 @@ export type {
   SupplierReturn,
   StockAdjustment,
   AuditLog,
-} from '@/lib/generated/prisma/client'
+} from '@prisma/client'
 
 // Re-export Prisma enums
 export {
@@ -32,7 +32,7 @@ export {
   PaymentMethod,
   StockAdjustmentType,
   ReturnType,
-} from '@/lib/generated/prisma/client'
+} from '@prisma/client'
 
 // Extended types with relations
 export interface ItemWithManufacturer {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { prisma } from '@/lib/db/prisma'
-import { Role, TenantStatus } from '@/lib/generated/prisma/client'
+import { Role, TenantStatus } from '@prisma/client'
 
 /**
  * Tenants API

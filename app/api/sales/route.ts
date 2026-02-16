@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/tenant/requireTenant'
 import { requirePermission } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
-import { PaymentType } from '@/lib/generated/prisma/client'
+import { PaymentType } from '@prisma/client'
 
 /**
  * Sales API Routes

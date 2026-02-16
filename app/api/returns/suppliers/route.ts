@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/tenant/requireTenant'
 import { requirePermission } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
-import { ReturnType } from '@/lib/generated/prisma/client'
+import { ReturnType } from '@prisma/client'
 
 /**
  * Supplier Returns API
