@@ -66,8 +66,12 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
 
-        // Allow public routes (login, register, etc.)
-        if (pathname.startsWith('/auth/')) {
+        // Allow public routes (login, register, onboarding, etc.)
+        if (
+          pathname.startsWith('/auth/') ||
+          pathname.startsWith('/onboarding') ||
+          pathname.startsWith('/api/tenants')
+        ) {
           return true
         }
 
