@@ -65,7 +65,7 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-gray-100 md:hidden shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-gray-100 hidden shadow-lg">
         <div className="flex items-stretch h-16">
           {tabs.map((tab) => {
             const active = isActive(tab.href)
@@ -113,11 +113,11 @@ export function BottomNav() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-50 bg-black/40 md:hidden"
+            className="fixed inset-0 z-50 bg-black/40 hidden"
             onClick={() => setDrawerOpen(false)}
           />
           {/* Sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl md:hidden max-h-[80vh] overflow-y-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl hidden max-h-[80vh] overflow-y-auto">
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />

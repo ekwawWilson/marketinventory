@@ -24,17 +24,17 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
 
       {/* Main content area */}
-      <div className="md:pl-64 flex flex-col min-h-screen">
+      <div className="pl-64 flex flex-col min-h-screen">
         <Header />
 
-        <main className="flex-1 pb-20 md:pb-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+        <main className="flex-1 pb-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             {children}
           </div>
         </main>
 
         {/* Branding footer — desktop only */}
-        <footer className="hidden md:block border-t border-gray-100 bg-white px-6 py-3">
+        <footer className="border-t border-gray-100 bg-white px-6 py-3">
           <p className="text-xs text-gray-400 text-center">
             <span className="font-semibold text-gray-500">PETROS Business Management Mini</span>
             {' · '}Developed by <span className="font-semibold text-gray-500">EYO Solutions</span>

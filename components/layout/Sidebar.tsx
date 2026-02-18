@@ -54,7 +54,7 @@ export function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(isSubMenuActive)
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
+    <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
       <div className="flex flex-col grow bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto shadow-sm">
         {/* Logo/Brand */}
         <div className="flex items-center shrink-0 px-4 mb-6">

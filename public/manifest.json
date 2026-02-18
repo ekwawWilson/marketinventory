@@ -1,0 +1,17 @@
+{
+  "name": "PETROS Business Management Mini",
+  "short_name": "PETROS",
+  "description": "Sales & Inventory Management",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -46,16 +46,8 @@ export function Header() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
-          {/* Mobile: Logo + Title */}
-          <div className="flex items-center gap-3 md:hidden">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-sm">
-              🏪
-            </div>
-            <h1 className="text-base font-bold text-gray-900">{pageTitle}</h1>
-          </div>
-
-          {/* Desktop: Page title */}
-          <div className="hidden md:flex items-center">
+          {/* Page title */}
+          <div className="flex items-center">
             <h2 className="text-xl font-bold text-gray-900">{pageTitle}</h2>
           </div>
 
@@ -70,8 +62,8 @@ export function Header() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-sm font-bold shadow-sm">
                   {user?.name?.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:block text-sm font-semibold text-gray-700">{user?.name}</span>
-                <svg className="h-4 w-4 text-gray-400 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="text-sm font-semibold text-gray-700">{user?.name}</span>
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
