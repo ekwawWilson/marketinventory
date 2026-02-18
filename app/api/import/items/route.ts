@@ -76,12 +76,12 @@ export async function POST(req: Request) {
         }
         const manufacturerId = mfrCache[mfrKey]
 
-        // Skip duplicate item names
+        // Skip duplicate item names within the same manufacturer
         const existing = await prisma.item.findFirst({
-          where: { tenantId: tenantId!, name: { equals: name, mode: 'insensitive' } },
+          where: { tenantId: tenantId!, manufacturerId, name: { equals: name, mode: 'insensitive' } },
         })
         if (existing) {
-          results.errors.push(`Row ${rowNum}: item "${name}" already exists — skipped`)
+          results.errors.push(`Row ${rowNum}: item "${name}" already exists for this manufacturer — skipped`)
           results.skipped++
           continue
         }
