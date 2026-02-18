@@ -15,7 +15,7 @@ import { formatCurrency } from '@/lib/utils/format'
  *   name, manufacturer, costPrice, sellingPrice, quantity
  */
 
-const REQUIRED_COLS = ['name', 'manufacturer', 'costPrice', 'sellingPrice']
+const REQUIRED_COLS = ['name', 'manufacturer', 'costprice', 'sellingprice']
 const TEMPLATE_CSV = `name,manufacturer,costPrice,sellingPrice,quantity
 Paracetamol 500mg,PharmaCo,2.50,4.00,100
 Ibuprofen 400mg,PharmaCo,3.00,5.50,50

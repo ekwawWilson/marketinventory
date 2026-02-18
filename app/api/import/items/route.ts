@@ -49,8 +49,8 @@ export async function POST(req: Request) {
 
       const name = (row.name || '').trim()
       const mfrName = (row.manufacturer || '').trim()
-      const costPrice = parseFloat(row.costPrice)
-      const sellingPrice = parseFloat(row.sellingPrice)
+      const costPrice = parseFloat(row.costprice ?? row.costPrice)
+      const sellingPrice = parseFloat(row.sellingprice ?? row.sellingPrice)
       const quantity = parseInt(row.quantity ?? '0', 10)
 
       // Validate row
