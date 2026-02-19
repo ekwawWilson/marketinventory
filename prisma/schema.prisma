@@ -173,8 +173,10 @@ model Item {
   unitName        String?  @default("unit")   // e.g. "carton", "bag", "box"
   piecesPerUnit   Int?     @default(1)         // e.g. 12 pieces per carton
 
-  saleItems      SaleItem[]
-  purchaseItems  PurchaseItem[]
+  saleItems       SaleItem[]
+  purchaseItems   PurchaseItem[]
+  customerReturns CustomerReturn[]
+  supplierReturns SupplierReturn[]
 }
 
 
@@ -220,6 +222,7 @@ model Sale {
   paymentMethod PaymentMethod  @default(CASH) // how money was received: CASH, MOMO, BANK
   createdAt     DateTime       @default(now())
   items         SaleItem[]
+  returns       CustomerReturn[]
 }
 
 model SaleItem {
@@ -248,7 +251,8 @@ model Purchase {
   paidAmount  Float
   paymentType PaymentType
   createdAt   DateTime @default(now())
-  items       PurchaseItem[] // relation
+  items       PurchaseItem[]
+  returns     SupplierReturn[]
 }
 
 model PurchaseItem {
@@ -288,25 +292,29 @@ model SupplierPayment {
 // =====================
 
 model CustomerReturn {
-  id        String @id @default(uuid())
+  id        String     @id @default(uuid())
   tenantId  String
   saleId    String
+  sale      Sale       @relation(fields: [saleId], references: [id])
   itemId    String
+  item      Item       @relation(fields: [itemId], references: [id])
   quantity  Float
   type      ReturnType
   amount    Float
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
 }
 
 model SupplierReturn {
-  id        String @id @default(uuid())
-  tenantId  String
+  id         String     @id @default(uuid())
+  tenantId   String
   purchaseId String
-  itemId    String
-  quantity  Float
-  type      ReturnType
-  amount    Float
-  createdAt DateTime @default(now())
+  purchase   Purchase   @relation(fields: [purchaseId], references: [id])
+  itemId     String
+  item       Item       @relation(fields: [itemId], references: [id])
+  quantity   Float
+  type       ReturnType
+  amount     Float
+  createdAt  DateTime   @default(now())
 }
 
 // =====================

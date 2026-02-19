@@ -11,58 +11,146 @@ import { useSidebar } from '@/lib/sidebar/SidebarContext'
  * Sidebar Navigation Component
  *
  * Desktop/Tablet sidebar - hidden on mobile (md:flex)
- * Collapsible: full (w-64) ↔ icon-rail (w-16)
- * Import and Tools are sub-menu items under Settings (expandable)
+ * Collapsible: full (w-64) ↔ icon rail (w-16)
+ *
+ * Groups (like QuickBooks / Odoo pattern):
+ *  - Main         : Dashboard, POS Terminal
+ *  - Sales        : Sales, Quotations, Returns (customer side)
+ *  - Purchasing   : Purchases, Purchase Orders, Returns (supplier side)
+ *  - Inventory    : Items, Manufacturers, Stock Adjustments
+ *  - Finance      : Payments, Expenses, Till / Cash Register
+ *  - CRM          : Customers, Suppliers
+ *  - Reports      : Reports, Audit Log
+ *  - Admin        : Users, Branches, Settings, Import / Tools
  */
+
+interface NavItem {
+  name: string
+  href: string
+  icon: string
+}
+
+interface NavGroup {
+  label: string
+  icon: string         // group icon shown in collapsed rail tooltip header
+  items: NavItem[]
+}
 
 export function Sidebar() {
   const pathname = usePathname()
   const { user } = useUser()
   const { features } = useTenantFeatures()
   const { collapsed, toggle } = useSidebar()
+  const role = user?.role || ''
 
-  const ALL_STAFF_ROLES = ['OWNER', 'STORE_MANAGER', 'CASHIER', 'INVENTORY_MANAGER', 'ACCOUNTANT', 'STAFF']
+  const ALL = ['OWNER', 'STORE_MANAGER', 'CASHIER', 'INVENTORY_MANAGER', 'ACCOUNTANT', 'STAFF']
+  const has = (...roles: string[]) => roles.includes(role)
+  const isSuperAdmin = user?.email === 'ee.wilson@outlook.com'
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'POS Terminal', href: '/pos', icon: '🖥️', roles: ['OWNER', 'STORE_MANAGER', 'CASHIER'], show: features.enablePosTerminal },
-    { name: 'Sales', href: '/sales', icon: '💰', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Purchases', href: '/purchases', icon: '🛒', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Items', href: '/items', icon: '📦', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Manufacturers', href: '/manufacturers', icon: '🏭', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Customers', href: '/customers', icon: '👤', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Suppliers', href: '/suppliers', icon: '🚚', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Payments', href: '/payments', icon: '💳', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Quotations', href: '/quotations', icon: '📄', roles: ['OWNER', 'STORE_MANAGER', 'CASHIER'], show: features.enableQuotations },
-    { name: 'Purchase Orders', href: '/purchase-orders', icon: '📋', roles: ['OWNER', 'STORE_MANAGER', 'INVENTORY_MANAGER'], show: features.enablePurchaseOrders },
-    { name: 'Expenses', href: '/expenses', icon: '💸', roles: ['OWNER', 'STORE_MANAGER', 'ACCOUNTANT'], show: features.enableExpenses },
-    { name: 'Till', href: '/till', icon: '🏧', roles: ['OWNER', 'STORE_MANAGER', 'CASHIER'], show: features.enableTill },
-    { name: 'Reports', href: '/reports', icon: '📈', roles: ALL_STAFF_ROLES, show: true },
-    { name: 'Users', href: '/users', icon: '👥', roles: ['OWNER'], show: true },
-    { name: 'Branches', href: '/branches', icon: '🏪', roles: ['OWNER'], show: features.enableBranches },
+  // Build nav groups — items with show: false are filtered out
+  const rawGroups = [
+    {
+      label: 'Main',
+      icon: '🏠',
+      itemsRaw: [
+        { name: 'Dashboard',    href: '/dashboard', icon: '📊', show: true },
+        { name: 'POS Terminal', href: '/pos',       icon: '🖥️', show: features.enablePosTerminal && has('OWNER','STORE_MANAGER','CASHIER') },
+      ],
+    },
+    {
+      label: 'Sales',
+      icon: '💰',
+      itemsRaw: [
+        { name: 'Sales',       href: '/sales',       icon: '💰', show: true },
+        { name: 'Quotations',  href: '/quotations',  icon: '📄', show: features.enableQuotations && has('OWNER','STORE_MANAGER','CASHIER') },
+        { name: 'Returns',     href: '/returns',     icon: '↩️', show: has('OWNER','STORE_MANAGER','STAFF') },
+      ],
+    },
+    {
+      label: 'Purchasing',
+      icon: '🛒',
+      itemsRaw: [
+        { name: 'Purchases',        href: '/purchases',        icon: '🛒', show: true },
+        { name: 'Purchase Orders',  href: '/purchase-orders',  icon: '📋', show: features.enablePurchaseOrders && has('OWNER','STORE_MANAGER','INVENTORY_MANAGER') },
+      ],
+    },
+    {
+      label: 'Inventory',
+      icon: '📦',
+      itemsRaw: [
+        { name: 'Items',         href: '/items',         icon: '📦', show: true },
+        { name: 'Manufacturers', href: '/manufacturers', icon: '🏭', show: true },
+      ],
+    },
+    {
+      label: 'Finance',
+      icon: '💳',
+      itemsRaw: [
+        { name: 'Payments',  href: '/payments',  icon: '💳', show: true },
+        { name: 'Expenses',  href: '/expenses',  icon: '💸', show: features.enableExpenses && has('OWNER','STORE_MANAGER','ACCOUNTANT') },
+        { name: 'Till',      href: '/till',      icon: '🏧', show: features.enableTill && has('OWNER','STORE_MANAGER','CASHIER') },
+      ],
+    },
+    {
+      label: 'CRM',
+      icon: '👥',
+      itemsRaw: [
+        { name: 'Customers', href: '/customers', icon: '👤', show: true },
+        { name: 'Suppliers',  href: '/suppliers', icon: '🚚', show: true },
+      ],
+    },
+    {
+      label: 'Reports',
+      icon: '📈',
+      itemsRaw: [
+        { name: 'Reports',   href: '/reports',     icon: '📈', show: true },
+        { name: 'Audit Log', href: '/audit-logs',  icon: '🔍', show: has('OWNER','STORE_MANAGER') },
+      ],
+    },
+    {
+      label: 'Admin',
+      icon: '⚙️',
+      itemsRaw: [
+        { name: 'Users',            href: '/users',                    icon: '👥', show: has('OWNER') },
+        { name: 'Branches',         href: '/branches',                 icon: '🏪', show: features.enableBranches && has('OWNER') },
+        { name: 'Settings',         href: '/settings',                 icon: '⚙️', show: has('OWNER') },
+        { name: 'Import Items',     href: '/import/items',             icon: '📥', show: ALL.includes(role) },
+        { name: 'Import Customers', href: '/import/customers',         icon: '📥', show: ALL.includes(role) },
+        { name: 'Adjust Stock',     href: '/items/adjust-bulk',        icon: '🔧', show: ALL.includes(role) },
+        { name: 'Adjust Balances',  href: '/customers/adjust-balance', icon: '⚖️', show: ALL.includes(role) },
+      ],
+    },
+    {
+      label: 'Platform',
+      icon: '🌐',
+      itemsRaw: [
+        { name: 'All Companies', href: '/admin', icon: '🏢', show: isSuperAdmin },
+      ],
+    },
   ]
 
-  const settingsSubMenu = [
-    { name: 'Settings', href: '/settings', icon: '⚙️', roles: ['OWNER'] },
-    { name: 'Audit Log', href: '/audit-logs', icon: '🔍', roles: ['OWNER', 'STORE_MANAGER'] },
-    { name: 'Import Items', href: '/import/items', icon: '📥', roles: ALL_STAFF_ROLES },
-    { name: 'Import Customers', href: '/import/customers', icon: '📥', roles: ALL_STAFF_ROLES },
-    { name: 'Adjust Stock (Bulk)', href: '/items/adjust-bulk', icon: '🔧', roles: ALL_STAFF_ROLES },
-    { name: 'Adjust Balances', href: '/customers/adjust-balance', icon: '⚖️', roles: ALL_STAFF_ROLES },
-  ]
+  // Filter items and groups
+  const groups: (NavGroup & { defaultOpen: boolean })[] = rawGroups
+    .map(g => ({
+      label: g.label,
+      icon: g.icon,
+      items: g.itemsRaw.filter(i => i.show).map(({ show: _s, ...i }) => i),
+      defaultOpen: g.itemsRaw.filter(i => i.show).some(
+        i => pathname === i.href || pathname?.startsWith(i.href + '/')
+      ),
+    }))
+    .filter(g => g.items.length > 0)
 
-  const filteredNavigation = navigation.filter(item =>
-    item.show && item.roles.includes(user?.role || '')
-  )
-  const filteredSubMenu = settingsSubMenu.filter(item =>
-    item.roles.includes(user?.role || '')
-  )
-
-  const isSubMenuActive = filteredSubMenu.some(item =>
-    pathname === item.href || pathname?.startsWith(item.href + '/')
+  // Track which groups are expanded
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(groups.map(g => [g.label, g.defaultOpen]))
   )
 
-  const [settingsOpen, setSettingsOpen] = useState(isSubMenuActive)
+  const toggleGroup = (label: string) =>
+    setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }))
+
+  const isActive = (href: string) =>
+    pathname === href || pathname?.startsWith(href + '/')
 
   return (
     <aside
@@ -105,106 +193,91 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 py-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-          {filteredNavigation.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+        <nav className={`flex-1 py-2 space-y-0 ${collapsed ? 'px-2' : 'px-2'}`}>
+          {groups.map((group) => {
+            const groupActive = group.items.some(i => isActive(i.href))
+            const isOpen = openGroups[group.label] ?? group.defaultOpen
+
+            if (collapsed) {
+              // Collapsed rail: show each item as icon-only with tooltip
+              return (
+                <div key={group.label} className="space-y-0.5 py-1 border-b border-gray-100 last:border-0">
+                  {group.items.map(item => {
+                    const active = isActive(item.href)
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={`${group.label}: ${item.name}`}
+                        className={`flex items-center justify-center w-10 h-10 mx-auto rounded-xl transition-all ${
+                          active
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-lg">{item.icon}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )
+            }
+
+            // Expanded: group header + collapsible items
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                title={collapsed ? item.name : undefined}
-                className={`
-                  group flex items-center text-sm font-medium rounded-xl transition-all
-                  ${collapsed ? 'justify-center w-10 h-10 mx-auto' : 'px-3 py-2.5'}
-                  ${isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }
-                `}
-              >
-                <span className={`text-lg ${collapsed ? '' : 'mr-3'}`}>{item.icon}</span>
-                {!collapsed && (
-                  <>
-                    <span className="truncate">{item.name}</span>
-                    {isActive && (
-                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full opacity-70 shrink-0" />
-                    )}
-                  </>
+              <div key={group.label} className="pt-1">
+                {/* Group header button */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
+                    groupActive
+                      ? 'text-blue-700'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-sm">{group.icon}</span>
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Group items */}
+                {isOpen && (
+                  <div className="ml-2 pl-3 border-l-2 border-gray-100 space-y-0.5 mb-1 mt-0.5">
+                    {group.items.map(item => {
+                      const active = isActive(item.href)
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-lg transition-all ${
+                            active
+                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          <span className="text-base shrink-0">{item.icon}</span>
+                          <span className="truncate">{item.name}</span>
+                          {active && (
+                            <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full opacity-70 shrink-0" />
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
                 )}
-              </Link>
+              </div>
             )
           })}
-
-          {/* Settings sub-menu */}
-          {filteredSubMenu.length > 0 && (
-            <div className="pt-1">
-              {collapsed ? (
-                /* In collapsed mode show Settings as a plain icon link to /settings */
-                <Link
-                  href="/settings"
-                  title="Settings"
-                  className={`
-                    flex items-center justify-center w-10 h-10 mx-auto rounded-xl transition-all
-                    ${isSubMenuActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
-                    }
-                  `}
-                >
-                  <span className="text-lg">⚙️</span>
-                </Link>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setSettingsOpen(o => !o)}
-                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all ${
-                      isSubMenuActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
-                  >
-                    <span className="mr-3 text-lg">⚙️</span>
-                    <span className="flex-1 text-left">Settings</span>
-                    <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {settingsOpen && (
-                    <div className="mt-0.5 ml-4 pl-3 border-l-2 border-gray-100 space-y-0.5">
-                      {filteredSubMenu.map((item) => {
-                        const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`
-                              flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all
-                              ${isActive
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                              }
-                            `}
-                          >
-                            <span className="mr-2.5 text-base">{item.icon}</span>
-                            {item.name}
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
         </nav>
 
         {/* User Info */}
-        <div className={`shrink-0 border-t border-gray-200 ${collapsed ? 'p-2' : 'p-4'}`}>
+        <div className={`shrink-0 border-t border-gray-200 ${collapsed ? 'p-2' : 'p-3'}`}>
           {collapsed ? (
             <div
               title={`${user?.name} · ${user?.role}`}
@@ -213,8 +286,8 @@ export function Sidebar() {
               {user?.name?.charAt(0).toUpperCase()}
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-base shadow-md shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">

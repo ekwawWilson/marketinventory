@@ -41,6 +41,15 @@ export async function GET(req: Request) {
     const returns = await prisma.supplierReturn.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      include: {
+        item: { select: { id: true, name: true } },
+        purchase: {
+          select: {
+            id: true,
+            supplier: { select: { id: true, name: true } },
+          },
+        },
+      },
     })
 
     const totalAmount = returns.reduce((sum, r) => sum + r.amount, 0)

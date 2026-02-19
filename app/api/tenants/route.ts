@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { prisma } from '@/lib/db/prisma'
 import { Role, TenantStatus } from '@prisma/client'
+import { sendMail } from '@/lib/email/mailer'
+import {
+  onboardingNotificationHtml,
+  onboardingNotificationText,
+} from '@/lib/email/templates/onboardingNotification'
+
+const ADMIN_NOTIFICATION_EMAIL = 'ee.wilson@outlook.com'
 
 /**
  * Tenants API
@@ -66,6 +73,24 @@ export async function POST(req: Request) {
 
     // Don't return password in response
     const { password: _, ...userWithoutPassword } = result.user
+
+    // Fire-and-forget admin notification email
+    sendMail({
+      to: ADMIN_NOTIFICATION_EMAIL,
+      subject: `🏪 New Business Onboarded: ${result.tenant.name}`,
+      html: onboardingNotificationHtml({
+        businessName: result.tenant.name,
+        ownerName: result.user.name,
+        ownerEmail: result.user.email,
+        createdAt: result.tenant.createdAt,
+      }),
+      text: onboardingNotificationText({
+        businessName: result.tenant.name,
+        ownerName: result.user.name,
+        ownerEmail: result.user.email,
+        createdAt: result.tenant.createdAt,
+      }),
+    })
 
     return NextResponse.json(
       {

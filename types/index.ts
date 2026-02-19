@@ -118,3 +118,35 @@ export interface SupplierWithSummary {
     purchases: number
   }
 }
+
+export interface CustomerReturnWithDetails {
+  id: string
+  tenantId: string
+  saleId: string
+  itemId: string
+  quantity: number
+  type: string
+  amount: number
+  createdAt: Date
+  item: { id: string; name: string }
+  sale: {
+    id: string
+    customer: { id: string; name: string } | null
+  }
+}
+
+export interface SupplierReturnWithDetails {
+  id: string
+  tenantId: string
+  purchaseId: string
+  itemId: string
+  quantity: number
+  type: string
+  amount: number
+  createdAt: Date
+  item: { id: string; name: string }
+  purchase: {
+    id: string
+    supplier: { id: string; name: string }
+  }
+}

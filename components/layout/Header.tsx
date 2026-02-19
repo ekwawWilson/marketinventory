@@ -42,6 +42,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/import/customers': 'Import Customers',
   '/items/adjust-bulk': 'Bulk Stock Adjustment',
   '/customers/adjust-balance': 'Adjust Customer Balances',
+  '/returns': 'Returns',
+  '/admin': 'Platform Admin',
 }
 
 export function Header() {

@@ -189,8 +189,13 @@ export default function PurchasesPage() {
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                       <span>{purchase.items?.length || 0} item(s)</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400">Paid: {formatCurrency(purchase.paidAmount)}</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => router.push(`/purchases/${purchase.id}`)}
+                          className="text-xs text-blue-600 font-semibold hover:underline"
+                        >
+                          View →
+                        </button>
                         <button
                           onClick={() => router.push(`/purchases/${purchase.id}/edit`)}
                           className="text-xs text-indigo-600 font-semibold hover:underline"
@@ -260,12 +265,20 @@ export default function PurchasesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          <button
-                            onClick={() => router.push(`/purchases/${purchase.id}/edit`)}
-                            className="text-xs text-indigo-600 font-semibold hover:underline"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex items-center justify-center gap-3">
+                            <button
+                              onClick={() => router.push(`/purchases/${purchase.id}`)}
+                              className="text-xs text-blue-600 font-semibold hover:underline"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => router.push(`/purchases/${purchase.id}/edit`)}
+                              className="text-xs text-indigo-600 font-semibold hover:underline"
+                            >
+                              Edit
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
