@@ -50,7 +50,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ id: str
         if (purchase.supplier) {
           setSelectedSupplier({ id: purchase.supplier.id, name: purchase.supplier.name, balance: purchase.supplier.balance })
         }
-        setCart(purchase.items.map((pi: any) => ({
+        setCart(purchase.items.map((pi: { itemId: string; quantity: number; costPrice: number; item: { name: string; manufacturer?: { name: string } } }) => ({
           itemId: pi.itemId,
           name: pi.item.name,
           manufacturer: pi.item.manufacturer?.name || 'Unknown',

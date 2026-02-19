@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     }
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (search) {
@@ -152,6 +153,8 @@ export async function POST(req: Request) {
         ...(body.retailPrice !== undefined && { retailPrice: body.retailPrice !== null ? parseFloat(body.retailPrice) : null }),
         ...(body.wholesalePrice !== undefined && { wholesalePrice: body.wholesalePrice !== null ? parseFloat(body.wholesalePrice) : null }),
         ...(body.promoPrice !== undefined && { promoPrice: body.promoPrice !== null ? parseFloat(body.promoPrice) : null }),
+        ...(body.barcode !== undefined && { barcode: body.barcode ? String(body.barcode).trim() : null }),
+        ...(body.expiryDate ? { expiryDate: new Date(body.expiryDate) } : {}),
       },
       include: {
         manufacturer: {
@@ -176,6 +179,7 @@ export async function POST(req: Request) {
 /**
  * Validate item data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateItemData(data: any): string | null {
   if (!data.name || typeof data.name !== 'string') {
     return 'Item name is required'

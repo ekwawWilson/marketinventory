@@ -28,6 +28,7 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate')
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (supplierId) {
@@ -132,6 +133,7 @@ export async function POST(req: Request) {
     }
 
     // Verify all items belong to tenant
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemIds = body.items.map((item: any) => item.itemId)
     const items = await prisma.item.findMany({
       where: {
@@ -149,6 +151,7 @@ export async function POST(req: Request) {
 
     // Calculate totals
     let totalAmount = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const purchaseItemsData = body.items.map((purchaseItem: any) => {
       const item = items.find((i) => i.id === purchaseItem.itemId)!
       const costPrice = purchaseItem.costPrice || item.costPrice
@@ -188,6 +191,7 @@ export async function POST(req: Request) {
 
       // 2. Create purchase items
       await tx.purchaseItem.createMany({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: purchaseItemsData.map((item: any) => ({
           purchaseId: newPurchase.id,
           ...item,
@@ -247,6 +251,7 @@ export async function POST(req: Request) {
 /**
  * Validate purchase request data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validatePurchaseRequest(data: any): string | null {
   if (!data.supplierId || typeof data.supplierId !== 'string') {
     return 'Supplier ID is required'

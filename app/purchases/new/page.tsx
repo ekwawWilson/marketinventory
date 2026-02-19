@@ -9,7 +9,7 @@ export default function NewPurchasePage() {
   const router = useRouter()
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: unknown) => {
     const response = await fetch('/api/purchases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

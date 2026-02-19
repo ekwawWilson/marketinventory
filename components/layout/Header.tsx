@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useState } from 'react'
+import { BranchSelector } from '@/components/layout/BranchSelector'
+import { useSidebar } from '@/lib/sidebar/SidebarContext'
 
 /**
  * Header Component
@@ -24,9 +26,18 @@ const PAGE_TITLES: Record<string, string> = {
   '/customers': 'Customers',
   '/suppliers': 'Suppliers',
   '/payments': 'Payments',
+  '/quotations': 'Quotations',
+  '/quotations/new': 'New Quotation',
+  '/purchase-orders': 'Purchase Orders',
+  '/purchase-orders/new': 'New Purchase Order',
+  '/expenses': 'Expenses',
+  '/expenses/new': 'Add Expense',
+  '/audit-logs': 'Audit Log',
+  '/till': 'Till / Cash Register',
   '/reports': 'Reports',
   '/users': 'Users & Permissions',
   '/settings': 'Settings',
+  '/branches': 'Branches',
   '/import/items': 'Import Items',
   '/import/customers': 'Import Customers',
   '/items/adjust-bulk': 'Bulk Stock Adjustment',
@@ -37,6 +48,7 @@ export function Header() {
   const { user } = useUser()
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { collapsed, toggle } = useSidebar()
 
   const pageTitle = Object.entries(PAGE_TITLES).find(([key]) => 
     pathname === key || pathname?.startsWith(key + '/')
@@ -46,13 +58,31 @@ export function Header() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
-          {/* Page title */}
-          <div className="flex items-center">
+          {/* Sidebar toggle (md+) + Page title */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggle}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="hidden md:flex p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              {collapsed ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h16" />
+                </svg>
+              )}
+            </button>
             <h2 className="text-xl font-bold text-gray-900">{pageTitle}</h2>
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Branch selector — shown when tenant has 2+ branches */}
+            <BranchSelector />
+
             {/* User menu */}
             <div className="relative">
               <button

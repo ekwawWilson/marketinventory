@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate')
 
     // Build date filter
-    const dateFilter: any = {}
+    const dateFilter: { gte?: Date; lte?: Date } = {}
     if (startDate) dateFilter.gte = new Date(startDate)
     if (endDate) dateFilter.lte = new Date(endDate)
 
@@ -69,7 +69,8 @@ export async function GET(req: Request) {
 /**
  * Sales Report
  */
-async function salesReport(tenantId: string, dateFilter: any) {
+async function salesReport(tenantId: string, dateFilter: { gte?: Date; lte?: Date }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { tenantId: tenantId! }
   if (Object.keys(dateFilter).length > 0) {
     where.createdAt = dateFilter
@@ -109,7 +110,8 @@ async function salesReport(tenantId: string, dateFilter: any) {
 /**
  * Purchases Report
  */
-async function purchasesReport(tenantId: string, dateFilter: any) {
+async function purchasesReport(tenantId: string, dateFilter: { gte?: Date; lte?: Date }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { tenantId: tenantId! }
   if (Object.keys(dateFilter).length > 0) {
     where.createdAt = dateFilter
@@ -234,7 +236,8 @@ async function creditorsReport(tenantId: string) {
 /**
  * Profit/Loss Report
  */
-async function profitReport(tenantId: string, dateFilter: any) {
+async function profitReport(tenantId: string, dateFilter: { gte?: Date; lte?: Date }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { tenantId: tenantId! }
   if (Object.keys(dateFilter).length > 0) {
     where.createdAt = dateFilter
@@ -346,7 +349,8 @@ async function dashboardReport(tenantId: string) {
 /**
  * End of Day Report (Comprehensive Daily Summary)
  */
-async function endOfDayReport(tenantId: string, dateFilter: any, userRole?: Role) {
+async function endOfDayReport(tenantId: string, dateFilter: { gte?: Date; lte?: Date }, userRole?: Role) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dayWhere: any = { tenantId }
   if (Object.keys(dateFilter).length > 0) {
     dayWhere.createdAt = dateFilter
@@ -463,6 +467,7 @@ async function endOfDayReport(tenantId: string, dateFilter: any, userRole?: Role
   const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0
 
   // Build response
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response: any = {
     type: 'end-of-day',
     date: dateFilter.gte || null,

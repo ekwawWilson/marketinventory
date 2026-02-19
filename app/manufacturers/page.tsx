@@ -14,6 +14,7 @@ import { Manufacturer } from '@/types'
 
 export default function ManufacturersPage() {
   const router = useRouter()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [manufacturers, setManufacturers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +37,7 @@ export default function ManufacturersPage() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns: Column<any>[] = [
     {
       key: 'name',

@@ -1,7 +1,6 @@
 'use client'
 
 import { DataTable, Column } from './DataTable'
-import { SupplierWithSummary } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 
 /**
@@ -10,13 +9,22 @@ import { formatCurrency, formatDate } from '@/lib/utils/format'
  * Displays suppliers with balance and transaction info
  */
 
+interface SupplierRow {
+  id?: string
+  name: string
+  phone?: string | null
+  balance: number
+  _count?: { purchases?: number; payments?: number }
+  purchases?: Array<{ totalAmount: number; createdAt: string }>
+}
+
 interface SuppliersTableProps {
-  suppliers: any[]
-  onSupplierClick?: (supplier: any) => void
+  suppliers: SupplierRow[]
+  onSupplierClick?: (supplier: SupplierRow) => void
 }
 
 export function SuppliersTable({ suppliers, onSupplierClick }: SuppliersTableProps) {
-  const columns: Column<any>[] = [
+  const columns: Column<SupplierRow>[] = [
     {
       key: 'name',
       label: 'Supplier Name',
@@ -62,7 +70,7 @@ export function SuppliersTable({ suppliers, onSupplierClick }: SuppliersTablePro
       sortable: true,
       render: (supplier) => {
         const total = supplier.purchases?.reduce(
-          (sum: number, purchase: any) => sum + purchase.totalAmount,
+          (sum: number, purchase: { totalAmount: number }) => sum + purchase.totalAmount,
           0
         ) || 0
         return <span className="text-gray-900">{formatCurrency(total)}</span>

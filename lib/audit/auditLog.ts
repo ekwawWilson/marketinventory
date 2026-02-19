@@ -12,7 +12,7 @@ export interface AuditLogEntry {
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW'
   entity: string
   entityId?: string
-  details?: Record<string, any>
+  details?: Record<string, unknown>
 }
 
 /**
@@ -77,6 +77,7 @@ export async function getAuditLogs(
     offset?: number
   }
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { tenantId }
 
   if (options?.userId) {

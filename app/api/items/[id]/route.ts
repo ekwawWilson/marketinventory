@@ -163,6 +163,8 @@ export async function PUT(req: Request, { params }: RouteParams) {
         ...(body.retailPrice !== undefined && { retailPrice: body.retailPrice !== null ? parseFloat(body.retailPrice) : null }),
         ...(body.wholesalePrice !== undefined && { wholesalePrice: body.wholesalePrice !== null ? parseFloat(body.wholesalePrice) : null }),
         ...(body.promoPrice !== undefined && { promoPrice: body.promoPrice !== null ? parseFloat(body.promoPrice) : null }),
+        ...(body.barcode !== undefined && { barcode: body.barcode ? String(body.barcode).trim() : null }),
+        ...(body.expiryDate !== undefined && { expiryDate: body.expiryDate ? new Date(body.expiryDate) : null }),
       },
       include: {
         manufacturer: true,
@@ -249,6 +251,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 /**
  * Validate item data for updates
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateItemData(data: any): string | null {
   if (data.name !== undefined && (!data.name || typeof data.name !== 'string')) {
     return 'Item name must be a non-empty string'

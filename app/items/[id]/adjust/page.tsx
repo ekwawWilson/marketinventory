@@ -18,6 +18,7 @@ export default function AdjustQuantityPage() {
   const params = useParams()
   const itemId = params.id as string
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [item, setItem] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)

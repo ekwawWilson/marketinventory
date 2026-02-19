@@ -21,6 +21,8 @@ interface ItemFormProps {
   enableRetailPrice?: boolean
   enableWholesalePrice?: boolean
   enablePromoPrice?: boolean
+  enableExpiryTracking?: boolean
+  enablePosTerminal?: boolean
 }
 
 export function ItemForm({
@@ -32,6 +34,8 @@ export function ItemForm({
   enableRetailPrice = false,
   enableWholesalePrice = false,
   enablePromoPrice = false,
+  enableExpiryTracking = false,
+  enablePosTerminal = false,
 }: ItemFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -238,7 +242,7 @@ export function ItemForm({
               {errors.unitName && (
                 <p className="mt-1 text-sm text-red-600">{errors.unitName.message}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">The outer unit (e.g. "carton")</p>
+              <p className="mt-1 text-xs text-gray-500">The outer unit (e.g. &quot;carton&quot;)</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -381,6 +385,37 @@ export function ItemForm({
               {profitMargin}%
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Barcode (shown when POS Terminal is enabled) */}
+      {enablePosTerminal && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Barcode / SKU <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            {...register('barcode')}
+            placeholder="e.g. 6001234567890"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+          />
+          <p className="mt-1 text-xs text-gray-500">Used for barcode scanning in the POS terminal</p>
+        </div>
+      )}
+
+      {/* Expiry Date (shown when Expiry Tracking is enabled) */}
+      {enableExpiryTracking && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Expiry Date <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="date"
+            {...register('expiryDate')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="mt-1 text-xs text-gray-500">Leave blank if this item does not expire</p>
         </div>
       )}
 

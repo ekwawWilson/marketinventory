@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { DataTable, Column } from '@/components/tables/DataTable'
 import { PurchaseWithDetails } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Purchase Reports Page
@@ -98,12 +99,24 @@ export default function PurchaseReportsPage() {
               Detailed purchase analytics and supplier insights
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 self-start sm:self-auto print:hidden"
-          >
-            🖨️ Print / PDF
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <ExportButton
+              filename="purchases-report"
+              getData={() => purchases.map(p => ({
+                Date: formatDate(p.createdAt),
+                Supplier: p.supplier?.name || '-',
+                'Total (GHS)': p.totalAmount.toFixed(2),
+                'Paid (GHS)': p.paidAmount.toFixed(2),
+                'Credit (GHS)': (p.totalAmount - p.paidAmount).toFixed(2),
+              }))}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Date Filters */}

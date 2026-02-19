@@ -14,7 +14,9 @@ interface UseSuppliersOptions {
 }
 
 export function useSuppliers(options: UseSuppliersOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [suppliers, setSuppliers] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

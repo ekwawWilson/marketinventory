@@ -24,6 +24,7 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, any>>({
   data,
   columns,

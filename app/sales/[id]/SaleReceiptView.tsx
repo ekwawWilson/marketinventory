@@ -24,6 +24,7 @@ interface Sale {
   id: string
   totalAmount: number
   paidAmount: number
+  paymentMethod: string
   createdAt: Date
   customer: {
     id: string
@@ -75,7 +76,13 @@ export function SaleReceiptView({ sale, tenant }: SaleReceiptViewProps) {
     total: sale.totalAmount,
     paidAmount: sale.paidAmount,
     change: changeAmount,
-    paymentType: creditAmount > 0 ? 'CREDIT' : 'CASH',
+    paymentType: creditAmount > 0
+      ? 'CREDIT'
+      : sale.paymentMethod === 'MOMO'
+        ? 'MOMO'
+        : sale.paymentMethod === 'BANK'
+          ? 'BANK TRANSFER'
+          : 'CASH',
     showManufacturer: tenant.showManufacturerOnReceipt,
   }
 
@@ -144,6 +151,12 @@ export function SaleReceiptView({ sale, tenant }: SaleReceiptViewProps) {
           <div>
             <span className="text-sm font-semibold text-gray-600">Items Count:</span>
             <p className="text-base text-gray-900">{sale.items.length} items</p>
+          </div>
+          <div>
+            <span className="text-sm font-semibold text-gray-600">Payment Method:</span>
+            <p className="text-base text-gray-900">
+              {sale.paymentMethod === 'MOMO' ? '📱 MoMo' : sale.paymentMethod === 'BANK' ? '🏦 Bank Transfer' : '💵 Cash'}
+            </p>
           </div>
           <div>
             <span className="text-sm font-semibold text-gray-600">Total Amount:</span>

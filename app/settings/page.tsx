@@ -6,6 +6,8 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { ReceiptSettings } from './ReceiptSettings'
 import { UnitSettings } from './UnitSettings'
 import { PricingSettings } from './PricingSettings'
+import { SmsSettings } from './SmsSettings'
+import { FeaturesSettings } from './FeaturesSettings'
 import { Settings as SettingsIcon } from 'lucide-react'
 
 /**
@@ -39,6 +41,18 @@ export default async function SettingsPage() {
       enableWholesalePrice: true,
       enablePromoPrice: true,
       enableDiscounts: true,
+      enableSmsNotifications: true,
+      hubtelClientId: true,
+      hubtelClientSecret: true,
+      hubtelSenderId: true,
+      enablePosTerminal: true,
+      enableQuotations: true,
+      enablePurchaseOrders: true,
+      enableExpiryTracking: true,
+      enableBranches: true,
+      enableCreditSales: true,
+      enableExpenses: true,
+      enableTill: true,
     },
   })
 
@@ -99,6 +113,32 @@ export default async function SettingsPage() {
             receiptPrinterWidth: tenant.receiptPrinterWidth,
           }}
           tenantId={tenant.id}
+        />
+
+        {/* SMS Notifications Settings */}
+        <SmsSettings
+          tenantId={tenant.id}
+          initialSettings={{
+            enableSmsNotifications: tenant.enableSmsNotifications,
+            hubtelClientId: tenant.hubtelClientId,
+            hubtelClientSecret: tenant.hubtelClientSecret,
+            hubtelSenderId: tenant.hubtelSenderId,
+          }}
+        />
+
+        {/* Features & Modules */}
+        <FeaturesSettings
+          tenantId={tenant.id}
+          initialSettings={{
+            enablePosTerminal: tenant.enablePosTerminal,
+            enableQuotations: tenant.enableQuotations,
+            enablePurchaseOrders: tenant.enablePurchaseOrders,
+            enableExpiryTracking: tenant.enableExpiryTracking,
+            enableBranches: tenant.enableBranches,
+            enableCreditSales: tenant.enableCreditSales,
+            enableExpenses: tenant.enableExpenses,
+            enableTill: tenant.enableTill,
+          }}
         />
 
         {/* Help Section */}

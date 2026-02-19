@@ -65,6 +65,7 @@ model Tenant {
   phone                        String?
   status                       TenantStatus @default(TRIAL)
   users                        User[]
+  branches                     Branch[]
   createdAt                    DateTime @default(now())
 
   // Receipt Settings
@@ -83,6 +84,22 @@ model Tenant {
 
   // Discounts — when enabled, cashier can apply a discount (% or fixed amount) per sale
   enableDiscounts              Boolean  @default(false)
+
+  // SMS Notifications — Hubtel Ghana SMS Gateway
+  enableSmsNotifications       Boolean  @default(false)
+  hubtelClientId               String?
+  hubtelClientSecret           String?
+  hubtelSenderId               String?  // e.g. "PETROS" (max 11 chars, no spaces)
+
+  // Feature Flags — enable/disable optional modules from Settings
+  enablePosTerminal            Boolean  @default(false)
+  enableQuotations             Boolean  @default(false)
+  enablePurchaseOrders         Boolean  @default(false)
+  enableExpiryTracking         Boolean  @default(false)
+  enableBranches               Boolean  @default(false)
+  enableCreditSales            Boolean  @default(false)
+  enableExpenses               Boolean  @default(false)
+  enableTill                   Boolean  @default(false)
 }
 
 // =====================
@@ -97,7 +114,26 @@ model User {
   email     String   @unique
   password  String
   role      Role
+  branchId  String?  // optional: assign user to a specific branch
+  branch    Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
+}
+
+// =====================
+// BRANCHES
+// =====================
+
+model Branch {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  address   String?
+  phone     String?
+  isDefault Boolean  @default(false)  // one branch per tenant is the "main" branch
+  createdAt DateTime @default(now())
+
+  users     User[]
 }
 
 // =====================
@@ -119,6 +155,7 @@ model Manufacturer {
 model Item {
   id              String @id @default(uuid())
   tenantId        String
+  branchId        String?  // optional: null = shared across all branches
   manufacturerId  String
   manufacturer    Manufacturer @relation(fields: [manufacturerId], references: [id])
   name            String
@@ -128,6 +165,8 @@ model Item {
   retailPrice     Float?   // optional retail price tier
   wholesalePrice  Float?   // optional wholesale price tier
   promoPrice      Float?   // optional promotional price tier
+  barcode         String?                    // optional barcode / SKU for POS scanning
+  expiryDate      DateTime?                  // optional expiry date tracking
   createdAt       DateTime @default(now())
 
   // Unit System fields (only meaningful when tenant.useUnitSystem = true)
@@ -170,25 +209,28 @@ model Supplier {
 // =====================
 
 model Sale {
-  id          String @id @default(uuid())
-  tenantId    String
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  totalAmount Float
-  paidAmount  Float
-  paymentType PaymentType
-  createdAt   DateTime @default(now())
-  items       SaleItem[]
+  id            String         @id @default(uuid())
+  tenantId      String
+  branchId      String?        // optional: which branch this sale was made at
+  customerId    String?
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  totalAmount   Float
+  paidAmount    Float
+  paymentType   PaymentType    // CASH = fully paid, CREDIT = balance owed
+  paymentMethod PaymentMethod  @default(CASH) // how money was received: CASH, MOMO, BANK
+  createdAt     DateTime       @default(now())
+  items         SaleItem[]
 }
 
 model SaleItem {
-  id        String @id @default(uuid())
-  saleId   String
-  sale     Sale   @relation(fields: [saleId], references: [id])
-  itemId   String
-  item     Item   @relation(fields: [itemId], references: [id])
-  quantity Float   // Float supports fractional units
-  price    Float
+  id             String @id @default(uuid())
+  saleId        String
+  sale          Sale   @relation(fields: [saleId], references: [id])
+  itemId        String
+  item          Item   @relation(fields: [itemId], references: [id])
+  quantity      Float   // Float supports fractional units
+  price         Float
+  discountAmount Float  @default(0)  // per-line discount in currency
 }
 
 
@@ -199,6 +241,7 @@ model SaleItem {
 model Purchase {
   id          String @id @default(uuid())
   tenantId    String
+  branchId    String?  // optional: which branch received this purchase
   supplierId  String
   supplier    Supplier @relation(fields: [supplierId], references: [id])
   totalAmount Float
@@ -273,11 +316,128 @@ model SupplierReturn {
 model StockAdjustment {
   id        String @id @default(uuid())
   tenantId  String
+  branchId  String?  // optional: which branch made this adjustment
   itemId    String
   type      StockAdjustmentType
   quantity  Float
   reason    String
   createdAt DateTime @default(now())
+}
+
+// =====================
+// EXPENSES
+// =====================
+
+enum ExpenseCategory {
+  RENT
+  SALARIES
+  UTILITIES
+  TRANSPORT
+  MARKETING
+  MAINTENANCE
+  OTHER
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  tenantId    String
+  branchId    String?  // optional: which branch incurred this expense
+  amount      Float
+  category    ExpenseCategory
+  description String
+  paidBy      String?
+  createdAt   DateTime        @default(now())
+}
+
+// =====================
+// TILL / CASH REGISTER
+// =====================
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+model CashRegister {
+  id              String      @id @default(uuid())
+  tenantId        String
+  branchId        String?  // optional: which branch this till belongs to
+  userId          String
+  status          ShiftStatus @default(OPEN)
+  openingFloat    Float                         // cash in till at shift start
+  closingCount    Float?                        // cash counted at shift close
+  expectedCash    Float?                        // calculated: float + cash sales + payments
+  variance        Float?                        // closingCount - expectedCash
+  note            String?
+  openedAt        DateTime    @default(now())
+  closedAt        DateTime?
+}
+
+// =====================
+// QUOTATIONS
+// =====================
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model Quotation {
+  id          String          @id @default(uuid())
+  tenantId    String
+  customerId  String?
+  status      QuotationStatus @default(DRAFT)
+  totalAmount Float
+  note        String?
+  validUntil  DateTime?
+  createdAt   DateTime        @default(now())
+  items       QuotationItem[]
+}
+
+model QuotationItem {
+  id           String    @id @default(uuid())
+  quotationId  String
+  quotation    Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  itemId       String
+  itemName     String    // snapshot of name at time of quote
+  quantity     Float
+  price        Float
+}
+
+// =====================
+// PURCHASE ORDERS
+// =====================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  tenantId    String
+  supplierId  String?
+  status      PurchaseOrderStatus @default(DRAFT)
+  totalAmount Float
+  note        String?
+  expectedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  items       PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  itemId          String
+  itemName        String        // snapshot of name at time of order
+  quantity        Float
+  costPrice       Float
 }
 
 // =====================

@@ -12,6 +12,7 @@ export default function SupplierDetailsPage() {
   const params = useParams()
   const supplierId = params.id as string
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [supplier, setSupplier] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -231,7 +232,7 @@ export default function SupplierDetailsPage() {
                 </h2>
                 {purchases.length > 0 && (
                   <button
-                    onClick={() => setExpandedPurchases(expandedPurchases.size === purchases.length ? new Set() : new Set(purchases.map((p: any) => p.id)))}
+                    onClick={() => setExpandedPurchases(expandedPurchases.size === purchases.length ? new Set() : new Set(purchases.map((p: { id: string }) => p.id)))}
                     className="text-xs text-amber-600 font-semibold hover:text-amber-800"
                   >
                     {expandedPurchases.size === purchases.length ? 'Collapse all' : 'Expand all'}
@@ -242,6 +243,7 @@ export default function SupplierDetailsPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No purchases in this period</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {purchases.map((purchase: any) => {
                     const isExpanded = expandedPurchases.has(purchase.id)
                     const credit = purchase.totalAmount - purchase.paidAmount
@@ -283,6 +285,7 @@ export default function SupplierDetailsPage() {
                                 <span className="text-center">Qty × Price</span>
                                 <span className="text-right">Subtotal</span>
                               </div>
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {purchase.items?.map((pi: any) => (
                                 <div key={pi.id} className="grid grid-cols-3 text-sm px-2 py-1">
                                   <div>
@@ -324,7 +327,7 @@ export default function SupplierDetailsPage() {
               {purchases.length > 0 && (
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-700">
                   <span>Period Total ({purchases.length} purchases)</span>
-                  <span className="text-amber-700">{formatCurrency(purchases.reduce((s: number, p: any) => s + p.totalAmount, 0))}</span>
+                  <span className="text-amber-700">{formatCurrency(purchases.reduce((s: number, p: { totalAmount: number }) => s + p.totalAmount, 0))}</span>
                 </div>
               )}
             </div>
@@ -341,6 +344,7 @@ export default function SupplierDetailsPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No payments in this period</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {payments.map((payment: any) => (
                     <div key={payment.id} className="px-5 py-3 flex items-center justify-between">
                       <div>
@@ -355,7 +359,7 @@ export default function SupplierDetailsPage() {
               {payments.length > 0 && (
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-700">
                   <span>Total Payments</span>
-                  <span className="text-green-700">{formatCurrency(payments.reduce((s: number, p: any) => s + p.amount, 0))}</span>
+                  <span className="text-green-700">{formatCurrency(payments.reduce((s: number, p: { amount: number }) => s + p.amount, 0))}</span>
                 </div>
               )}
             </div>

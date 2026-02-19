@@ -12,6 +12,7 @@ export default function CustomerDetailsPage() {
   const params = useParams()
   const customerId = params.id as string
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [customer, setCustomer] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +24,10 @@ export default function CustomerDetailsPage() {
 
   // Toggle expanded sales
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set())
+
+  // SMS reminder
+  const [isSendingReminder, setIsSendingReminder] = useState(false)
+  const [reminderMsg, setReminderMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => { fetchCustomer() }, [customerId, startDate, endDate])
 
@@ -66,6 +71,25 @@ export default function CustomerDetailsPage() {
       fetchCustomer()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to update customer')
+    }
+  }
+
+  const handleSendReminder = async () => {
+    setIsSendingReminder(true)
+    setReminderMsg(null)
+    try {
+      const res = await fetch('/api/sms/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send reminder')
+      setReminderMsg({ type: 'success', text: 'Balance reminder SMS sent successfully.' })
+    } catch (err) {
+      setReminderMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to send reminder' })
+    } finally {
+      setIsSendingReminder(false)
     }
   }
 
@@ -141,6 +165,15 @@ export default function CustomerDetailsPage() {
               >
                 💰 Record Payment
               </button>
+              {customer.phone && customer.balance > 0 && (
+                <button
+                  onClick={handleSendReminder}
+                  disabled={isSendingReminder}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSendingReminder ? 'Sending...' : '📱 Send Reminder'}
+                </button>
+              )}
               <button
                 onClick={() => setIsEditing(true)}
                 className="px-3 py-2 border-2 border-gray-200 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50"
@@ -178,6 +211,13 @@ export default function CustomerDetailsPage() {
             <p className="text-xl font-bold text-green-600 mt-1">{formatCurrency(summary.totalPaid || 0)}</p>
           </div>
         </div>
+
+        {/* SMS Reminder feedback */}
+        {reminderMsg && (
+          <div className={`px-4 py-3 rounded-xl text-sm font-medium ${reminderMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            {reminderMsg.text}
+          </div>
+        )}
 
         {/* Edit Form */}
         {isEditing ? (
@@ -231,7 +271,7 @@ export default function CustomerDetailsPage() {
                 </h2>
                 {sales.length > 0 && (
                   <button
-                    onClick={() => setExpandedSales(expandedSales.size === sales.length ? new Set() : new Set(sales.map((s: any) => s.id)))}
+                    onClick={() => setExpandedSales(expandedSales.size === sales.length ? new Set() : new Set(sales.map((s: { id: string }) => s.id)))}
                     className="text-xs text-blue-600 font-semibold hover:text-blue-800"
                   >
                     {expandedSales.size === sales.length ? 'Collapse all' : 'Expand all'}
@@ -242,6 +282,7 @@ export default function CustomerDetailsPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No sales in this period</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {sales.map((sale: any) => {
                     const isExpanded = expandedSales.has(sale.id)
                     const credit = sale.totalAmount - sale.paidAmount
@@ -283,6 +324,7 @@ export default function CustomerDetailsPage() {
                                 <span className="text-center">Qty × Price</span>
                                 <span className="text-right">Subtotal</span>
                               </div>
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {sale.items?.map((si: any) => (
                                 <div key={si.id} className="grid grid-cols-3 text-sm px-2 py-1">
                                   <div>
@@ -324,7 +366,7 @@ export default function CustomerDetailsPage() {
               {sales.length > 0 && (
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-700">
                   <span>Period Total ({sales.length} sales)</span>
-                  <span className="text-blue-700">{formatCurrency(sales.reduce((s: number, sale: any) => s + sale.totalAmount, 0))}</span>
+                  <span className="text-blue-700">{formatCurrency(sales.reduce((s: number, sale: { totalAmount: number }) => s + sale.totalAmount, 0))}</span>
                 </div>
               )}
             </div>
@@ -341,6 +383,7 @@ export default function CustomerDetailsPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No payments in this period</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {payments.map((payment: any) => (
                     <div key={payment.id} className="px-5 py-3 flex items-center justify-between">
                       <div>
@@ -355,7 +398,7 @@ export default function CustomerDetailsPage() {
               {payments.length > 0 && (
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-700">
                   <span>Total Payments</span>
-                  <span className="text-green-700">{formatCurrency(payments.reduce((s: number, p: any) => s + p.amount, 0))}</span>
+                  <span className="text-green-700">{formatCurrency(payments.reduce((s: number, p: { amount: number }) => s + p.amount, 0))}</span>
                 </div>
               )}
             </div>

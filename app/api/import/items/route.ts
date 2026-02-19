@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     if (!authorized) return permError!
 
     const body = await req.json()
-    const rows: any[] = body.rows || []
+    const rows: Record<string, unknown>[] = body.rows || []
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'No rows provided' }, { status: 400 })
@@ -47,11 +47,11 @@ export async function POST(req: Request) {
       const row = rows[i]
       const rowNum = i + 2 // 1-indexed + header row
 
-      const name = (row.name || '').trim()
-      const mfrName = (row.manufacturer || '').trim()
-      const costPrice = parseFloat(row.costprice ?? row.costPrice)
-      const sellingPrice = parseFloat(row.sellingprice ?? row.sellingPrice)
-      const quantity = parseInt(row.quantity ?? '0', 10)
+      const name = String(row.name || '').trim()
+      const mfrName = String(row.manufacturer || '').trim()
+      const costPrice = parseFloat(String(row.costprice ?? row.costPrice))
+      const sellingPrice = parseFloat(String(row.sellingprice ?? row.sellingPrice))
+      const quantity = parseInt(String(row.quantity ?? '0'), 10)
 
       // Validate row
       if (!name) { results.errors.push(`Row ${rowNum}: name is required`); results.skipped++; continue }

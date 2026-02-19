@@ -130,6 +130,20 @@ export async function PUT(req: Request, { params }: RouteParams) {
         ...(body.enableWholesalePrice !== undefined && { enableWholesalePrice: Boolean(body.enableWholesalePrice) }),
         ...(body.enablePromoPrice !== undefined && { enablePromoPrice: Boolean(body.enablePromoPrice) }),
         ...(body.enableDiscounts !== undefined && { enableDiscounts: Boolean(body.enableDiscounts) }),
+        // SMS settings
+        ...(body.enableSmsNotifications !== undefined && { enableSmsNotifications: Boolean(body.enableSmsNotifications) }),
+        ...(body.hubtelClientId !== undefined && { hubtelClientId: body.hubtelClientId ? String(body.hubtelClientId).trim() : null }),
+        ...(body.hubtelClientSecret !== undefined && { hubtelClientSecret: body.hubtelClientSecret ? String(body.hubtelClientSecret).trim() : null }),
+        ...(body.hubtelSenderId !== undefined && { hubtelSenderId: body.hubtelSenderId ? String(body.hubtelSenderId).trim().slice(0, 11) : null }),
+        // Feature flags
+        ...(body.enablePosTerminal !== undefined && { enablePosTerminal: Boolean(body.enablePosTerminal) }),
+        ...(body.enableQuotations !== undefined && { enableQuotations: Boolean(body.enableQuotations) }),
+        ...(body.enablePurchaseOrders !== undefined && { enablePurchaseOrders: Boolean(body.enablePurchaseOrders) }),
+        ...(body.enableExpiryTracking !== undefined && { enableExpiryTracking: Boolean(body.enableExpiryTracking) }),
+        ...(body.enableBranches !== undefined && { enableBranches: Boolean(body.enableBranches) }),
+        ...(body.enableCreditSales !== undefined && { enableCreditSales: Boolean(body.enableCreditSales) }),
+        ...(body.enableExpenses !== undefined && { enableExpenses: Boolean(body.enableExpenses) }),
+        ...(body.enableTill !== undefined && { enableTill: Boolean(body.enableTill) }),
       },
     })
 

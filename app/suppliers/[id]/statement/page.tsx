@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Supplier Statement Page
@@ -15,8 +16,9 @@ import { formatCurrency, formatDate } from '@/lib/utils/format'
  * - Export to PDF via window.print()
  */
 
+type PurchaseItem = { item?: { name?: string } }
 type Transaction =
-  | { type: 'purchase'; id: string; date: string; totalAmount: number; paidAmount: number; items: any[] }
+  | { type: 'purchase'; id: string; date: string; totalAmount: number; paidAmount: number; items: PurchaseItem[] }
   | { type: 'payment'; id: string; date: string; amount: number; method: string }
 
 export default function SupplierStatementPage() {
@@ -24,6 +26,7 @@ export default function SupplierStatementPage() {
   const params = useParams()
   const supplierId = params.id as string
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [supplier, setSupplier] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -76,6 +79,7 @@ export default function SupplierStatementPage() {
   }
 
   // Build unified, chronologically sorted transaction list
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const purchases: Transaction[] = (supplier.purchases || []).map((p: any) => ({
     type: 'purchase' as const,
     id: p.id,
@@ -85,6 +89,7 @@ export default function SupplierStatementPage() {
     items: p.items || [],
   }))
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const paymentsTx: Transaction[] = (supplier.payments || []).map((p: any) => ({
     type: 'payment' as const,
     id: p.id,
@@ -108,8 +113,8 @@ export default function SupplierStatementPage() {
     return { tx, balance: runningBalance }
   })
 
-  const totalPurchasesValue = purchases.reduce((s, tx) => s + (tx as any).totalAmount, 0)
-  const totalPaymentsValue = paymentsTx.reduce((s, tx) => s + (tx as any).amount, 0)
+  const totalPurchasesValue = purchases.reduce((s, tx) => s + (tx.type === 'purchase' ? tx.totalAmount : 0), 0)
+  const totalPaymentsValue = paymentsTx.reduce((s, tx) => s + (tx.type === 'payment' ? tx.amount : 0), 0)
   const currentBalance = supplier.balance
 
   const periodLabel = startDate && endDate
@@ -149,6 +154,21 @@ export default function SupplierStatementPage() {
               className="px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-amber-500 focus:outline-none"
             />
             {isLoading && <span className="text-xs text-gray-400">Loading...</span>}
+            <ExportButton
+              filename={`statement-${supplier?.name || 'supplier'}-${startDate}-${endDate}`}
+              getData={() => txWithBalance.map(({ tx, balance }) => ({
+                Date: formatDate(tx.date),
+                Type: tx.type === 'purchase' ? 'Purchase' : 'Payment',
+                Description: tx.type === 'purchase'
+                  ? `Purchase #${tx.id.slice(0, 8).toUpperCase()}`
+                  : 'Payment Made',
+                'Debit (GHS)': tx.type === 'purchase' ? tx.totalAmount.toFixed(2) : '',
+                'Credit (GHS)': tx.type === 'purchase'
+                  ? (tx.paidAmount > 0 ? tx.paidAmount.toFixed(2) : '')
+                  : tx.amount.toFixed(2),
+                'Balance (GHS)': balance.toFixed(2),
+              }))}
+            />
             <button
               onClick={() => window.print()}
               className="px-4 py-2 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700 flex items-center gap-2"
@@ -223,7 +243,7 @@ export default function SupplierStatementPage() {
                           <p className="font-semibold text-gray-900">Purchase #{tx.id.slice(0, 8)}</p>
                           {tx.items.length > 0 && (
                             <p className="text-xs text-gray-400 mt-0.5">
-                              {tx.items.map((pi: any) => pi.item?.name).filter(Boolean).join(', ')}
+                              {tx.items.map(pi => pi.item?.name).filter(Boolean).join(', ')}
                             </p>
                           )}
                           {tx.paidAmount > 0 && tx.paidAmount < tx.totalAmount && (

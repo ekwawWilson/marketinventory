@@ -57,6 +57,7 @@ export interface SaleWithDetails {
   totalAmount: number
   paidAmount: number
   paymentType: string
+  paymentMethod: string
   createdAt: Date
   customer?: {
     id: string

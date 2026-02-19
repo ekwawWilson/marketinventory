@@ -51,7 +51,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
         if (sale.customer) {
           setSelectedCustomer({ id: sale.customer.id, name: sale.customer.name, balance: sale.customer.balance })
         }
-        setCart(sale.items.map((si: any) => ({
+        setCart(sale.items.map((si: { itemId: string; quantity: number; price: number; item: { name: string; quantity: number; manufacturer?: { name: string } } }) => ({
           itemId: si.itemId,
           name: si.item.name,
           manufacturer: si.item.manufacturer?.name || 'Unknown',

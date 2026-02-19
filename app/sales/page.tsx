@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SaleWithDetails } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 type FilterStatus = 'all' | 'paid' | 'partial'
 type PaymentFilter = 'all' | 'CASH' | 'CREDIT'
@@ -62,6 +63,17 @@ export default function SalesPage() {
             <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
             <p className="text-sm text-gray-500 mt-0.5">{sales.length} total transactions</p>
           </div>
+          <ExportButton
+            filename="sales"
+            getData={() => filtered.map(s => ({
+              Date: formatDate(s.createdAt),
+              Customer: s.customer?.name || 'Walk-in',
+              'Payment Type': s.paymentType,
+              'Total (GHS)': s.totalAmount.toFixed(2),
+              'Paid (GHS)': s.paidAmount.toFixed(2),
+              'Balance (GHS)': Math.max(0, s.totalAmount - s.paidAmount).toFixed(2),
+            }))}
+          />
           <button
             onClick={() => router.push('/sales/new')}
             className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md text-sm"
@@ -193,11 +205,14 @@ export default function SalesPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-gray-900">{formatCurrency(sale.totalAmount)}</p>
-                        <div className="flex gap-1 mt-1 justify-end">
+                        <div className="flex gap-1 mt-1 justify-end flex-wrap">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                             sale.paymentType === 'CASH' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {sale.paymentType === 'CASH' ? '💵 Cash' : '📋 Credit'}
+                            {sale.paymentType === 'CASH' ? '✓ Paid' : '📋 Credit'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                            {sale.paymentMethod === 'MOMO' ? '📱 MoMo' : sale.paymentMethod === 'BANK' ? '🏦 Bank' : '💵 Cash'}
                           </span>
                           {credit === 0 ? (
                             <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">Paid</span>
@@ -251,11 +266,16 @@ export default function SalesPage() {
                           {sale.customer?.name || 'Walk-in Customer'}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            sale.paymentType === 'CASH' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {sale.paymentType === 'CASH' ? '💵 Cash' : '📋 Credit'}
-                          </span>
+                          <div className="flex flex-col gap-1 items-center">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              sale.paymentType === 'CASH' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {sale.paymentType === 'CASH' ? '✓ Paid' : '📋 Credit'}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                              {sale.paymentMethod === 'MOMO' ? '📱 MoMo' : sale.paymentMethod === 'BANK' ? '🏦 Bank' : '💵 Cash'}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-center text-gray-600">{sale.items?.length || 0}</td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">{formatCurrency(sale.totalAmount)}</td>

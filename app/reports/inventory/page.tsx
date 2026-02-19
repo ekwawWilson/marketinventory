@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ItemWithManufacturer } from '@/types'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Inventory Reports Page
@@ -47,7 +48,7 @@ export default function InventoryReportsPage() {
   }
 
   const filtered = manufacturerFilter
-    ? items.filter(item => item.manufacturer?.id === manufacturerFilter || (item as any).manufacturerId === manufacturerFilter)
+    ? items.filter(item => item.manufacturer?.id === manufacturerFilter || (item as { manufacturerId?: string }).manufacturerId === manufacturerFilter)
     : items
 
   const totalItems = filtered.length
@@ -70,12 +71,25 @@ export default function InventoryReportsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Inventory Report</h1>
             <p className="text-sm text-gray-500 mt-1">Stock levels, valuation, and low stock alerts</p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 self-start sm:self-auto"
-          >
-            🖨️ Print / PDF
-          </button>
+          <div className="flex gap-2">
+            <ExportButton
+              filename="inventory-report"
+              getData={() => filtered.map(i => ({
+                Item: i.name,
+                Manufacturer: i.manufacturer?.name || '',
+                Stock: i.quantity,
+                'Cost Price (GHS)': i.costPrice.toFixed(2),
+                'Selling Price (GHS)': i.sellingPrice.toFixed(2),
+                'Stock Value (GHS)': (i.costPrice * i.quantity).toFixed(2),
+              }))}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Print title */}

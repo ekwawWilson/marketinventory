@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { formatCurrency, formatNumber } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 interface EndOfDayData {
   salesSummary: {
@@ -116,12 +117,43 @@ export default function EndOfDayReportPage() {
               Complete daily summary of business activity
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 self-start sm:self-auto"
-          >
-            Print / PDF
-          </button>
+          <div className="flex gap-2">
+            <ExportButton
+              filename={`end-of-day-${selectedDate}`}
+              label="Export Summary"
+              getData={() => {
+                if (!data) return []
+                return [
+                  { Section: 'Sales', Metric: 'Total Sales Count', Value: data.salesSummary.totalCount },
+                  { Section: 'Sales', Metric: 'Total Revenue (GHS)', Value: data.salesSummary.totalRevenue.toFixed(2) },
+                  { Section: 'Sales', Metric: 'Cash Sales Amount (GHS)', Value: data.salesSummary.cashSalesAmount.toFixed(2) },
+                  { Section: 'Sales', Metric: 'Credit Sales Amount (GHS)', Value: data.salesSummary.creditSalesAmount.toFixed(2) },
+                  { Section: 'Sales', Metric: 'Average Sale Value (GHS)', Value: data.salesSummary.averageSaleValue.toFixed(2) },
+                  { Section: 'Payments', Metric: 'Cash Received (GHS)', Value: data.cashAndPayments.cashSalesReceived.toFixed(2) },
+                  { Section: 'Payments', Metric: 'MOMO Received (GHS)', Value: data.cashAndPayments.customerPaymentsByMethod.MOMO.toFixed(2) },
+                  { Section: 'Payments', Metric: 'Bank Received (GHS)', Value: data.cashAndPayments.customerPaymentsByMethod.BANK.toFixed(2) },
+                  { Section: 'Payments', Metric: 'Debt Collected (GHS)', Value: data.cashAndPayments.totalCustomerPayments.toFixed(2) },
+                  { Section: 'Payments', Metric: 'New Credit Issued (GHS)', Value: data.cashAndPayments.newCreditIssued.toFixed(2) },
+                  { Section: 'Purchases', Metric: 'Total Purchases', Value: data.purchasesSummary.totalCount },
+                  { Section: 'Purchases', Metric: 'Total Amount (GHS)', Value: data.purchasesSummary.totalAmount.toFixed(2) },
+                  { Section: 'Inventory', Metric: 'Low Stock Items', Value: data.inventoryAlerts.lowStockCount },
+                  { Section: 'Inventory', Metric: 'Out of Stock Items', Value: data.inventoryAlerts.outOfStockCount },
+                  { Section: 'Debt', Metric: 'Total Outstanding (GHS)', Value: data.creditAndDebt.totalOutstandingDebt.toFixed(2) },
+                  { Section: 'Debt', Metric: 'Total Debtors', Value: data.creditAndDebt.totalDebtorsCount },
+                  ...(data.profitSummary ? [
+                    { Section: 'Profit', Metric: 'Gross Profit (GHS)', Value: data.profitSummary.grossProfit.toFixed(2) },
+                    { Section: 'Profit', Metric: 'Profit Margin (%)', Value: data.profitSummary.profitMargin },
+                  ] : []),
+                ]
+              }}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Print Header (visible only when printing) */}

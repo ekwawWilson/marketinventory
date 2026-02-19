@@ -4,19 +4,23 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
+import { useTenantFeatures } from '@/hooks/useTenant'
 
-type Tab = 'all' | 'low' | 'out'
+type Tab = 'all' | 'low' | 'out' | 'expiring'
 interface Item {
   id: string
   name: string
   quantity: number
   costPrice: number
   sellingPrice: number
+  expiryDate: string | null
   manufacturer: { id: string; name: string } | null
 }
 
 export default function ItemsPage() {
   const router = useRouter()
+  const { features } = useTenantFeatures()
   const [items, setItems] = useState<Item[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -39,6 +43,12 @@ export default function ItemsPage() {
 
   const manufacturers = Array.from(new Set(items.map(i => i.manufacturer?.name).filter(Boolean)))
 
+  const now = new Date()
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  // Reset expiring tab if feature is disabled
+  const activeTab: Tab = (!features.enableExpiryTracking && tab === 'expiring') ? 'all' : tab
+
   const filtered = items.filter(i => {
     const q = search.toLowerCase()
     const matchSearch = !q
@@ -46,14 +56,23 @@ export default function ItemsPage() {
       || (i.manufacturer?.name || '').toLowerCase().includes(q)
     const matchMfr = !manufacturerFilter || i.manufacturer?.name === manufacturerFilter
     const matchTab =
-      tab === 'all' ? true
-      : tab === 'low' ? i.quantity > 0 && i.quantity <= 10
-      : i.quantity === 0
+      activeTab === 'all' ? true
+      : activeTab === 'low' ? i.quantity > 0 && i.quantity <= 10
+      : activeTab === 'out' ? i.quantity === 0
+      : activeTab === 'expiring' ? (() => {
+          if (!i.expiryDate) return false
+          return new Date(i.expiryDate) <= thirtyDaysFromNow
+        })()
+      : false
     return matchSearch && matchMfr && matchTab
   })
-
   const lowStock = items.filter(i => i.quantity > 0 && i.quantity <= 10)
   const outOfStock = items.filter(i => i.quantity === 0)
+  const expiringSoon = items.filter(i => {
+    if (!i.expiryDate) return false
+    const exp = new Date(i.expiryDate)
+    return exp <= thirtyDaysFromNow
+  })
   const totalValue = items.reduce((s, i) => s + i.costPrice * i.quantity, 0)
 
   return (
@@ -66,6 +85,18 @@ export default function ItemsPage() {
             <p className="text-sm text-gray-500 mt-0.5">{items.length} items in stock</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <ExportButton
+              filename="inventory"
+              getData={() => filtered.map(i => ({
+                Name: i.name,
+                Manufacturer: i.manufacturer?.name || '',
+                Quantity: i.quantity,
+                'Cost Price (GHS)': i.costPrice.toFixed(2),
+                'Selling Price (GHS)': i.sellingPrice.toFixed(2),
+                'Stock Value (GHS)': (i.costPrice * i.quantity).toFixed(2),
+                'Expiry Date': i.expiryDate ? new Date(i.expiryDate).toLocaleDateString() : '',
+              }))}
+            />
             <button
               onClick={() => router.push('/manufacturers')}
               className="px-4 py-2.5 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 text-sm transition-colors"
@@ -94,7 +125,7 @@ export default function ItemsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Total Items</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">{items.length}</p>
@@ -112,18 +143,28 @@ export default function ItemsPage() {
             <p className={`text-xs font-semibold uppercase ${outOfStock.length > 0 ? 'text-red-600' : 'text-gray-500'}`}>Out of Stock</p>
             <p className={`text-2xl font-bold mt-1 ${outOfStock.length > 0 ? 'text-red-700' : 'text-gray-900'}`}>{outOfStock.length}</p>
           </div>
+          {features.enableExpiryTracking && (
+            <div
+              onClick={() => expiringSoon.length > 0 && setTab('expiring')}
+              className={`rounded-xl p-4 border shadow-sm ${expiringSoon.length > 0 ? 'bg-orange-50 border-orange-200 cursor-pointer hover:bg-orange-100' : 'bg-white border-gray-200'}`}
+            >
+              <p className={`text-xs font-semibold uppercase ${expiringSoon.length > 0 ? 'text-orange-600' : 'text-gray-500'}`}>Expiring Soon</p>
+              <p className={`text-2xl font-bold mt-1 ${expiringSoon.length > 0 ? 'text-orange-700' : 'text-gray-900'}`}>{expiringSoon.length}</p>
+              {expiringSoon.length > 0 && <p className="text-xs text-orange-600 mt-0.5">Within 30 days</p>}
+            </div>
+          )}
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Tabs */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-            {([['all', 'All Items'], ['low', 'Low Stock'], ['out', 'Out of Stock']] as [Tab, string][]).map(([t, label]) => (
+            {(([['all', 'All Items'], ['low', 'Low Stock'], ['out', 'Out of Stock'], ...(features.enableExpiryTracking ? [['expiring', 'Expiring Soon']] : [])] as [Tab, string][])).map(([t, label]) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-                  tab === t ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  activeTab === t ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {label}
@@ -132,6 +173,9 @@ export default function ItemsPage() {
                 )}
                 {t === 'out' && outOfStock.length > 0 && (
                   <span className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{outOfStock.length}</span>
+                )}
+                {t === 'expiring' && expiringSoon.length > 0 && (
+                  <span className="ml-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">{expiringSoon.length}</span>
                 )}
               </button>
             ))}
@@ -216,6 +260,16 @@ export default function ItemsPage() {
                         <p className="font-bold text-green-700">{formatCurrency(item.sellingPrice)}</p>
                       </div>
                     </div>
+                    {features.enableExpiryTracking && item.expiryDate && (() => {
+                      const exp = new Date(item.expiryDate)
+                      const isExpired = exp < now
+                      const isSoon = !isExpired && exp <= thirtyDaysFromNow
+                      return (isExpired || isSoon) ? (
+                        <div className={`mt-2 text-xs font-semibold px-2 py-1 rounded-lg ${isExpired ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {isExpired ? '⚠ Expired' : '⏰ Expires'} {exp.toLocaleDateString()}
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 )
               })}
@@ -232,6 +286,7 @@ export default function ItemsPage() {
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">Cost Price</th>
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">Selling Price</th>
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase">Stock Value</th>
+                    {features.enableExpiryTracking && <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Expiry</th>}
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
                   </tr>
                 </thead>
@@ -256,6 +311,20 @@ export default function ItemsPage() {
                         <td className="px-6 py-4 text-right text-sm font-semibold text-gray-800">
                           {formatCurrency(item.costPrice * item.quantity)}
                         </td>
+                        {features.enableExpiryTracking && (
+                          <td className="px-6 py-4 text-sm">
+                            {item.expiryDate ? (() => {
+                              const exp = new Date(item.expiryDate)
+                              const isExpired = exp < now
+                              const isSoon = !isExpired && exp <= thirtyDaysFromNow
+                              return (
+                                <span className={`font-medium ${isExpired ? 'text-red-600' : isSoon ? 'text-orange-600' : 'text-gray-600'}`}>
+                                  {isExpired ? '⚠ ' : isSoon ? '⏰ ' : ''}{exp.toLocaleDateString()}
+                                </span>
+                              )
+                            })() : <span className="text-gray-300">—</span>}
+                          </td>
+                        )}
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                             stockStatus === 'out' ? 'bg-red-100 text-red-700' :
@@ -271,7 +340,7 @@ export default function ItemsPage() {
                 </tbody>
                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                   <tr>
-                    <td colSpan={5} className="px-6 py-3 text-sm font-bold text-gray-700">
+                    <td colSpan={features.enableExpiryTracking ? 6 : 5} className="px-6 py-3 text-sm font-bold text-gray-700">
                       Total Stock Value ({filtered.length} items)
                     </td>
                     <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">

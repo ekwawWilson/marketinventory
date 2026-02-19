@@ -31,7 +31,7 @@ function RecordSupplierPaymentPageContent() {
       const data = await response.json()
 
       // Filter suppliers with balance > 0
-      const suppliersWithCredit = (data.suppliers || data.data || []).filter((s: any) => s.balance > 0)
+      const suppliersWithCredit = (data.suppliers || data.data || []).filter((s: { balance: number }) => s.balance > 0)
       setSuppliers(suppliersWithCredit)
     } catch (error) {
       console.error('Error fetching suppliers:', error)

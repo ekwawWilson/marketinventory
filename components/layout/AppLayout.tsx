@@ -4,27 +4,35 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { BottomNav } from './BottomNav'
 import { ReactNode } from 'react'
+import { SidebarProvider, useSidebar } from '@/lib/sidebar/SidebarContext'
 
 /**
  * App Layout Component
  *
  * Responsive layout:
  * - Mobile (<768px): Top header + bottom tab navigation
- * - Tablet/Desktop (>=768px): Sidebar + header
+ * - Tablet/Desktop (>=768px): Collapsible sidebar + header
+ *   Collapsed: icon rail (w-16), Expanded: full sidebar (w-64)
  */
 
 interface AppLayoutProps {
   children: ReactNode
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+function AppLayoutInner({ children }: AppLayoutProps) {
+  const { collapsed } = useSidebar()
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop/Tablet Sidebar - hidden on mobile */}
+      {/* Desktop/Tablet Sidebar */}
       <Sidebar />
 
-      {/* Main content area */}
-      <div className="pl-64 flex flex-col min-h-screen">
+      {/* Main content area — offset tracks sidebar width */}
+      <div
+        className={`flex flex-col min-h-screen transition-all duration-200 ease-in-out ${
+          collapsed ? 'md:pl-16' : 'md:pl-64'
+        }`}
+      >
         <Header />
 
         <main className="flex-1 pb-6">
@@ -34,7 +42,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
 
         {/* Branding footer — desktop only */}
-        <footer className="border-t border-gray-100 bg-white px-6 py-3">
+        <footer className="hidden md:block border-t border-gray-100 bg-white px-6 py-3">
           <p className="text-xs text-gray-400 text-center">
             <span className="font-semibold text-gray-500">PETROS Business Management Mini</span>
             {' · '}Developed by <span className="font-semibold text-gray-500">EYO Solutions</span>
@@ -43,8 +51,16 @@ export function AppLayout({ children }: AppLayoutProps) {
         </footer>
       </div>
 
-      {/* Mobile Bottom Tab Navigation - shown only on mobile */}
+      {/* Mobile Bottom Tab Navigation */}
       <BottomNav />
     </div>
+  )
+}
+
+export function AppLayout({ children }: AppLayoutProps) {
+  return (
+    <SidebarProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </SidebarProvider>
   )
 }

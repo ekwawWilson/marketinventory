@@ -13,6 +13,7 @@ import {
   FileText,
   Settings,
 } from "lucide-react";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 
 interface DashboardProps {
   userName: string;
@@ -164,7 +165,15 @@ export function ImprovedDashboard({ userName, tenantName }: DashboardProps) {
           </div>
         </section>
 
-        {/* Help Section */}
+        {/* Analytics Section */}
+        <section className="mt-10">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <TrendingUp className="w-7 h-7 text-green-600" />
+            Analytics
+          </h2>
+          <DashboardCharts />
+        </section>
+
       </div>
     </div>
   );

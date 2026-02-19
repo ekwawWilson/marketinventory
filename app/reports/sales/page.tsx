@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SalesTable } from '@/components/tables/SalesTable'
 import { SaleWithDetails } from '@/types'
-import { formatCurrency } from '@/lib/utils/format'
+import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Sales Reports Page
@@ -55,12 +56,25 @@ export default function SalesReportsPage() {
               Detailed sales performance and analytics
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 self-start sm:self-auto print:hidden"
-          >
-            🖨️ Print / PDF
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <ExportButton
+              filename="sales-report"
+              getData={() => sales.map(s => ({
+                Date: formatDate(s.createdAt),
+                Customer: s.customer?.name || 'Walk-in',
+                'Payment Type': s.paymentType,
+                'Total (GHS)': s.totalAmount.toFixed(2),
+                'Paid (GHS)': s.paidAmount.toFixed(2),
+                'Balance (GHS)': (s.totalAmount - s.paidAmount).toFixed(2),
+              }))}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Date Filters */}

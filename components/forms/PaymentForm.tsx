@@ -25,7 +25,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
   const searchRef = useRef<HTMLDivElement>(null)
 
   const label = type === 'customer' ? 'Customer' : 'Supplier'
-  const fieldName = type === 'customer' ? 'customerId' : 'supplierId'
+  const fieldName: keyof PaymentFormData = type === 'customer' ? 'customerId' : 'supplierId'
 
   const {
     register,
@@ -47,7 +47,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
       const found = entities.find(e => e.id === preselectedId)
       if (found) {
         setSelectedEntity(found)
-        setValue(fieldName as any, found.id)
+        setValue(fieldName, found.id)
       }
     }
   }, [preselectedId, entities])
@@ -71,7 +71,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
 
   const handleSelect = (entity: typeof entities[0]) => {
     setSelectedEntity(entity)
-    setValue(fieldName as any, entity.id)
+    setValue(fieldName, entity.id)
     setSearch('')
     setShowDropdown(false)
   }
@@ -96,7 +96,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">
 
       {/* Hidden field */}
-      <input type="hidden" {...register(fieldName as any)} />
+      <input type="hidden" {...register(fieldName)} />
 
       {/* Entity Search */}
       <div ref={searchRef} className="relative">
@@ -125,7 +125,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
               type="button"
               onClick={() => {
                 setSelectedEntity(null)
-                setValue(fieldName as any, '')
+                setValue(fieldName, '')
                 setSearch('')
               }}
               className="text-gray-400 hover:text-gray-700 text-2xl leading-none shrink-0"

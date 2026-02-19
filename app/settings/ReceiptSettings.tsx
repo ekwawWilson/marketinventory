@@ -106,7 +106,7 @@ export function ReceiptSettings({ initialSettings, tenantId }: ReceiptSettingsPr
             Receipt Printer Width
           </label>
           <p className="text-sm text-gray-600 mb-4">
-            Select your thermal printer's paper width
+            Select your thermal printer&apos;s paper width
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

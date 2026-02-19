@@ -20,6 +20,7 @@ interface UseItemsOptions {
 }
 
 export function useItems(options: UseItemsOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

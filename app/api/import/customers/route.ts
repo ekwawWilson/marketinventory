@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     if (!authorized) return permError!
 
     const body = await req.json()
-    const rows: any[] = body.rows || []
+    const rows: Record<string, unknown>[] = body.rows || []
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'No rows provided' }, { status: 400 })
@@ -42,9 +42,9 @@ export async function POST(req: Request) {
       const row = rows[i]
       const rowNum = i + 2
 
-      const name = (row.name || '').trim()
-      const phone = (row.phone || '').trim() || null
-      const balance = parseFloat(row.balance ?? '0')
+      const name = (String(row.name || '')).trim()
+      const phone = (String(row.phone || '')).trim() || null
+      const balance = parseFloat(String(row.balance ?? '0'))
 
       if (!name) { results.errors.push(`Row ${rowNum}: name is required`); results.skipped++; continue }
       if (isNaN(balance) || balance < 0) { results.errors.push(`Row ${rowNum}: invalid balance`); results.skipped++; continue }

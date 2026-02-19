@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 type Tab = 'all' | 'debtors' | 'paid'
 
@@ -55,6 +56,15 @@ export default function CustomersPage() {
             <p className="text-sm text-gray-500 mt-0.5">{customers.length} customers registered</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <ExportButton
+              filename="customers"
+              getData={() => filtered.map(c => ({
+                Name: c.name,
+                Phone: c.phone || '',
+                'Balance Owed (GHS)': c.balance.toFixed(2),
+                'Total Sales': c._count?.sales ?? '',
+              }))}
+            />
             <button
               onClick={() => router.push('/customers/adjust-balance')}
               className="px-4 py-2.5 border-2 border-indigo-200 text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 text-sm transition-colors"
@@ -153,7 +163,7 @@ export default function CustomersPage() {
                   onClick={() => router.push(`/customers/${c.id}`)}
                   className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 cursor-pointer active:bg-gray-50"
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 ${
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0 ${
                     c.balance > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                   }`}>
                     {c.name.charAt(0).toUpperCase()}
@@ -163,7 +173,7 @@ export default function CustomersPage() {
                     {c.phone && <p className="text-sm text-gray-500">{c.phone}</p>}
                     <p className="text-xs text-gray-400 mt-0.5">{c._count?.sales || 0} sales</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right shrink-0">
                     {c.balance > 0 ? (
                       <>
                         <p className="text-sm font-bold text-red-600">{formatCurrency(c.balance)}</p>

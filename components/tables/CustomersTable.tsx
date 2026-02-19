@@ -1,7 +1,6 @@
 'use client'
 
 import { DataTable, Column } from './DataTable'
-import { CustomerWithSummary } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 
 /**
@@ -10,13 +9,22 @@ import { formatCurrency, formatDate } from '@/lib/utils/format'
  * Displays customers with balance and transaction info
  */
 
+interface CustomerRow {
+  id?: string
+  name: string
+  phone?: string | null
+  balance: number
+  _count?: { sales?: number; payments?: number }
+  sales?: Array<{ totalAmount: number; createdAt: string }>
+}
+
 interface CustomersTableProps {
-  customers: any[]
-  onCustomerClick?: (customer: any) => void
+  customers: CustomerRow[]
+  onCustomerClick?: (customer: CustomerRow) => void
 }
 
 export function CustomersTable({ customers, onCustomerClick }: CustomersTableProps) {
-  const columns: Column<any>[] = [
+  const columns: Column<CustomerRow>[] = [
     {
       key: 'name',
       label: 'Customer Name',
@@ -62,7 +70,7 @@ export function CustomersTable({ customers, onCustomerClick }: CustomersTablePro
       sortable: true,
       render: (customer) => {
         const total = customer.sales?.reduce(
-          (sum: number, sale: any) => sum + sale.totalAmount,
+          (sum: number, sale: { totalAmount: number }) => sum + sale.totalAmount,
           0
         ) || 0
         return <span className="text-gray-900">{formatCurrency(total)}</span>

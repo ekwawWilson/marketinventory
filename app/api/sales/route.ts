@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/tenant/requireTenant'
 import { requirePermission } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
-import { PaymentType } from '@prisma/client'
+import { PaymentType, PaymentMethod } from '@prisma/client'
+import { sendSms, buildSaleConfirmationSms } from '@/lib/sms/hubtel'
 
 /**
  * Sales API Routes
@@ -28,6 +29,7 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate')
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (customerId) {
@@ -134,6 +136,7 @@ export async function POST(req: Request) {
     }
 
     // Verify all items belong to tenant and have sufficient stock
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemIds = body.items.map((item: any) => item.itemId)
     const items = await prisma.item.findMany({
       where: {
@@ -166,21 +169,30 @@ export async function POST(req: Request) {
 
     // Calculate totals
     let totalAmount = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const saleItemsData = body.items.map((saleItem: any) => {
       const item = items.find((i) => i.id === saleItem.itemId)!
       const price = saleItem.price || item.sellingPrice
-      const subtotal = price * saleItem.quantity
+      const lineDiscount = Math.max(0, parseFloat(saleItem.discountAmount) || 0)
+      const subtotal = Math.max(0, price * saleItem.quantity - lineDiscount)
       totalAmount += subtotal
 
       return {
         itemId: saleItem.itemId,
         quantity: saleItem.quantity,
         price,
+        discountAmount: lineDiscount,
       }
     })
 
     const paidAmount = body.paidAmount || 0
     const creditAmount = totalAmount - paidAmount
+
+    // Resolve payment method — default to CASH; CREDIT sales always use CASH method (partial or deferred)
+    const validMethods: string[] = Object.values(PaymentMethod)
+    const paymentMethod: PaymentMethod = validMethods.includes(body.paymentMethod)
+      ? (body.paymentMethod as PaymentMethod)
+      : PaymentMethod.CASH
 
     // Validate payment
     if (paidAmount > totalAmount) {
@@ -207,11 +219,13 @@ export async function POST(req: Request) {
           totalAmount,
           paidAmount,
           paymentType: creditAmount > 0 ? PaymentType.CREDIT : PaymentType.CASH,
+          paymentMethod,
         },
       })
 
       // 2. Create sale items
       await tx.saleItem.createMany({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: saleItemsData.map((item: any) => ({
           saleId: newSale.id,
           ...item,
@@ -258,6 +272,40 @@ export async function POST(req: Request) {
       },
     })
 
+    // Send SMS notification (fire-and-forget — don't block or fail the sale)
+    if (completeSale?.customer?.phone) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId! },
+        select: {
+          name: true,
+          enableSmsNotifications: true,
+          hubtelClientId: true,
+          hubtelClientSecret: true,
+          hubtelSenderId: true,
+        },
+      })
+      if (
+        tenant?.enableSmsNotifications &&
+        tenant.hubtelClientId &&
+        tenant.hubtelClientSecret &&
+        tenant.hubtelSenderId
+      ) {
+        const customer = await prisma.customer.findUnique({ where: { id: body.customerId }, select: { balance: true } })
+        const message = buildSaleConfirmationSms({
+          businessName: tenant.name,
+          customerName: completeSale.customer.name,
+          totalAmount,
+          paidAmount,
+          balance: customer?.balance ?? 0,
+        })
+        sendSms(
+          { clientId: tenant.hubtelClientId, clientSecret: tenant.hubtelClientSecret, senderId: tenant.hubtelSenderId },
+          completeSale.customer.phone,
+          message,
+        ).catch(() => {}) // silent fail
+      }
+    }
+
     return NextResponse.json(completeSale, { status: 201 })
   } catch (err) {
     console.error('Failed to create sale:', err)
@@ -271,6 +319,7 @@ export async function POST(req: Request) {
 /**
  * Validate sale request data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateSaleRequest(data: any): string | null {
   if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
     return 'At least one item is required'

@@ -25,6 +25,7 @@ export async function GET(req: Request) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (saleId) {

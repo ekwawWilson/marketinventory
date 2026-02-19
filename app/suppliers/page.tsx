@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 type Tab = 'all' | 'owed' | 'cleared'
 
@@ -54,12 +55,23 @@ export default function SuppliersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
             <p className="text-sm text-gray-500 mt-0.5">{suppliers.length} suppliers registered</p>
           </div>
-          <button
-            onClick={() => router.push('/suppliers/new')}
-            className="flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition-colors shadow-md text-sm"
-          >
-            <span className="text-xl leading-none">+</span> Add Supplier
-          </button>
+          <div className="flex gap-2">
+            <ExportButton
+              filename="suppliers"
+              getData={() => filtered.map(s => ({
+                Name: s.name,
+                Phone: s.phone || '',
+                'Balance Owed (GHS)': s.balance.toFixed(2),
+                'Total Purchases': s._count?.purchases ?? '',
+              }))}
+            />
+            <button
+              onClick={() => router.push('/suppliers/new')}
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition-colors shadow-md text-sm"
+            >
+              <span className="text-xl leading-none">+</span> Add Supplier
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}

@@ -87,6 +87,7 @@ export async function POST(req: Request) {
 /**
  * Validate signup data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateSignupData(data: any): string | null {
   if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
     return 'Your name is required'

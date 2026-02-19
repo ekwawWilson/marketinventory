@@ -25,6 +25,7 @@ export async function GET(req: Request) {
     const hasCredit = searchParams.get('hasCredit') === 'true'
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (search) {

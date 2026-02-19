@@ -31,7 +31,7 @@ function RecordCustomerPaymentContent() {
       const data = await response.json()
 
       // Filter customers with balance > 0
-      const customersWithDebt = (data.customers || data.data || []).filter((c: any) => c.balance > 0)
+      const customersWithDebt = (data.customers || data.data || []).filter((c: { balance: number }) => c.balance > 0)
       setCustomers(customersWithDebt)
     } catch (error) {
       console.error('Error fetching customers:', error)

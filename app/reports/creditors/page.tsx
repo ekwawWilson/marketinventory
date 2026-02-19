@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { SuppliersTable } from '@/components/tables/SuppliersTable'
 import { SupplierWithSummary } from '@/types'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Creditors Report Page
@@ -48,12 +49,22 @@ export default function CreditorsReportPage() {
               Suppliers with outstanding balances (money we owe)
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700 self-start sm:self-auto print:hidden"
-          >
-            🖨️ Print / PDF
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <ExportButton
+              filename="creditors-report"
+              getData={() => suppliers.map(s => ({
+                Supplier: s.name,
+                Phone: (s as { phone?: string }).phone || '',
+                'Balance Owed (GHS)': s.balance.toFixed(2),
+              }))}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}

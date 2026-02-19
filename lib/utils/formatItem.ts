@@ -25,7 +25,7 @@ export function formatItemWithManufacturer(item: ItemWithManufacturer): string {
 /**
  * Format item for display in dropdowns and tables
  */
-export function formatItemForDisplay(item: any): string {
+export function formatItemForDisplay(item: { name?: string; manufacturer?: { name?: string } | null; manufacturerName?: string } | null | undefined): string {
   if (!item) return ''
 
   const itemName = item.name || 'Unnamed Item'
@@ -57,13 +57,13 @@ export function parseFormattedItem(formattedString: string): { name: string; man
 /**
  * Group items by manufacturer for filtered display
  */
-export function groupItemsByManufacturer(items: any[]): Record<string, any[]> {
-  return items.reduce((acc, item) => {
+export function groupItemsByManufacturer(items: ItemWithManufacturer[]): Record<string, ItemWithManufacturer[]> {
+  return items.reduce((acc: Record<string, ItemWithManufacturer[]>, item) => {
     const manufacturerName = item.manufacturer?.name || 'Unknown'
     if (!acc[manufacturerName]) {
       acc[manufacturerName] = []
     }
     acc[manufacturerName].push(item)
     return acc
-  }, {} as Record<string, any[]>)
+  }, {} as Record<string, ItemWithManufacturer[]>)
 }

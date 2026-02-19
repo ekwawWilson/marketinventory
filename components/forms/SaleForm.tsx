@@ -12,6 +12,7 @@ interface CartItem {
   manufacturer: string;
   quantity: number;
   price: number;
+  discountAmount: number;
   maxStock: number;
   unitName?: string;
   piecesPerUnit?: number;
@@ -26,7 +27,8 @@ interface CartItem {
 interface SaleFormData {
   customerId?: string;
   paidAmount?: number;
-  items: { itemId: string; quantity: number; price: number }[];
+  paymentMethod?: "CASH" | "MOMO" | "BANK";
+  items: { itemId: string; quantity: number; price: number; discountAmount: number }[];
 }
 
 interface SaleFormProps {
@@ -115,6 +117,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
   const [enableWholesalePrice, setEnableWholesalePrice] = useState(false);
   const [enablePromoPrice, setEnablePromoPrice] = useState(false);
   const [enableDiscounts, setEnableDiscounts] = useState(false);
+  const [enableCreditSales, setEnableCreditSales] = useState(false);
   useEffect(() => {
     if (!user?.tenantId) return;
     fetch(`/api/tenants/${user.tenantId}`)
@@ -125,6 +128,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
         if (data?.enableWholesalePrice) setEnableWholesalePrice(true);
         if (data?.enablePromoPrice) setEnablePromoPrice(true);
         if (data?.enableDiscounts) setEnableDiscounts(true);
+        if (data?.enableCreditSales) setEnableCreditSales(true);
       })
       .catch(() => {});
   }, [user?.tenantId]);
@@ -134,6 +138,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
   );
   const [discountValue, setDiscountValue] = useState("");
   const [paymentType, setPaymentType] = useState<"CASH" | "CREDIT">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOMO" | "BANK">("CASH");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [itemSearch, setItemSearch] = useState("");
   const [showItemDropdown, setShowItemDropdown] = useState(false);
@@ -221,6 +226,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
           manufacturer: item.manufacturer?.name || "Unknown",
           quantity: 1,
           price: item.sellingPrice,
+          discountAmount: 0,
           maxStock: item.quantity,
           unitName: item.unitName,
           piecesPerUnit: item.piecesPerUnit,
@@ -282,6 +288,14 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
     );
   };
 
+  const updateDiscount = (itemId: string, discount: number) => {
+    setCart((prev) =>
+      prev.map((c) =>
+        c.itemId === itemId ? { ...c, discountAmount: Math.max(0, discount) } : c,
+      ),
+    );
+  };
+
   const updatePriceTier = (
     itemId: string,
     tier: "default" | "retail" | "wholesale" | "promo",
@@ -308,7 +322,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
   const hasPriceTiers =
     enableRetailPrice || enableWholesalePrice || enablePromoPrice;
 
-  const subtotal = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
+  const subtotal = cart.reduce((sum, c) => sum + Math.max(0, c.price * c.quantity - (c.discountAmount || 0)), 0);
   const discountNum = parseFloat(discountValue) || 0;
   const discountAmount = enableDiscounts
     ? discountType === "percent"
@@ -333,10 +347,12 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
     }
     const data: SaleFormData = {
       customerId: selectedCustomer?.id,
+      paymentMethod,
       items: cart.map((c) => ({
         itemId: c.itemId,
         quantity: c.quantity,
         price: c.price,
+        discountAmount: c.discountAmount || 0,
       })),
     };
     if (paymentType === "CASH") {
@@ -358,9 +374,9 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Payment Type Toggle */}
-      <div className="grid grid-cols-2 gap-3">
-        {(["CASH", "CREDIT"] as const).map((type) => {
+      {/* Payment Type Toggle (CASH vs CREDIT) */}
+      <div className={`grid gap-3 ${enableCreditSales ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {(["CASH", ...(enableCreditSales ? ["CREDIT"] : [])] as ("CASH" | "CREDIT")[]).map((type) => {
           const active = paymentType === type;
           const isCash = type === "CASH";
           return (
@@ -392,6 +408,28 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
             </button>
           );
         })}
+      </div>
+
+      {/* Payment Method (how money is received) */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payment Method</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(["CASH", "MOMO", "BANK"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setPaymentMethod(m)}
+              className={`py-2.5 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-1.5 ${
+                paymentMethod === m
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+              }`}
+            >
+              <span>{m === "CASH" ? "💵" : m === "MOMO" ? "📱" : "🏦"}</span>
+              {m === "CASH" ? "Cash" : m === "MOMO" ? "MoMo" : "Bank"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Customer Search */}
@@ -603,6 +641,9 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
                 <th className="text-right px-2 py-2 font-semibold">
                   Unit Price
                 </th>
+                {enableDiscounts && (
+                  <th className="text-right px-2 py-2 font-semibold">Discount</th>
+                )}
                 <th className="text-right pl-2 pr-4 py-2 font-semibold w-24">
                   Subtotal
                 </th>
@@ -777,11 +818,36 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
                         />
                       </div>
                     </td>
+                    {/* Per-line Discount */}
+                    {enableDiscounts && (
+                      <td className="px-2 py-3 align-middle">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] text-gray-400 uppercase font-semibold">Disc.</span>
+                          <input
+                            type="number"
+                            value={item.discountAmount || ''}
+                            onChange={(e) =>
+                              updateDiscount(item.itemId, parseFloat(e.target.value) || 0)
+                            }
+                            placeholder="0"
+                            step="0.01"
+                            min="0"
+                            max={item.price * item.quantity}
+                            className="w-20 px-2.5 py-1.5 border-2 border-red-100 rounded-lg text-sm font-bold bg-white focus:border-red-400 focus:outline-none text-right text-red-600"
+                          />
+                        </div>
+                      </td>
+                    )}
                     {/* Subtotal */}
                     <td className="pl-2 pr-4 py-3 align-middle text-right">
                       <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                        {formatCurrency(item.price * item.quantity)}
+                        {formatCurrency(Math.max(0, item.price * item.quantity - (item.discountAmount || 0)))}
                       </p>
+                      {(item.discountAmount || 0) > 0 && (
+                        <p className="text-xs text-red-500 line-through whitespace-nowrap">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
+                      )}
                     </td>
                     {/* Remove */}
                     <td className="pr-3 py-3 align-middle">
@@ -820,9 +886,16 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
                         {item.manufacturer}
                       </p>
                     </div>
-                    <span className="text-sm font-bold text-gray-900 shrink-0">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-bold text-gray-900 block">
+                        {formatCurrency(Math.max(0, item.price * item.quantity - (item.discountAmount || 0)))}
+                      </span>
+                      {(item.discountAmount || 0) > 0 && (
+                        <span className="text-xs text-red-400 line-through block">
+                          {formatCurrency(item.price * item.quantity)}
+                        </span>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeFromCart(item.itemId)}
@@ -1028,6 +1101,23 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
                       </div>
                     </>
                   )}
+
+                  {/* Per-line discount (mobile) */}
+                  {enableDiscounts && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-500 font-semibold flex-1">Discount (GH₵)</span>
+                      <input
+                        type="number"
+                        value={item.discountAmount || ''}
+                        onChange={(e) => updateDiscount(item.itemId, parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        max={item.price * item.quantity}
+                        className="w-24 px-2 py-1 border-2 border-red-100 rounded-lg text-sm font-bold bg-white focus:border-red-400 focus:outline-none text-right text-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1038,9 +1128,16 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
             <span className="text-sm text-gray-500 font-medium">
               {cart.length} item{cart.length !== 1 ? "s" : ""}
             </span>
-            <span className="text-base font-bold text-gray-800">
-              Subtotal: {formatCurrency(subtotal)}
-            </span>
+            <div className="text-right">
+              {enableDiscounts && cart.some(c => (c.discountAmount || 0) > 0) && (
+                <p className="text-xs text-red-500 font-medium">
+                  Line discounts: −{formatCurrency(cart.reduce((s, c) => s + (c.discountAmount || 0), 0))}
+                </p>
+              )}
+              <span className="text-base font-bold text-gray-800">
+                Subtotal: {formatCurrency(subtotal)}
+              </span>
+            </div>
           </div>
         </div>
       )}

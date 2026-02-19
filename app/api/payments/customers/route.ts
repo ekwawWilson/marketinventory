@@ -3,6 +3,7 @@ import { requireTenant } from '@/lib/tenant/requireTenant'
 import { requirePermission } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
 import { PaymentMethod } from '@prisma/client'
+import { sendSms, buildPaymentReceivedSms } from '@/lib/sms/hubtel'
 
 /**
  * Customer Payments API
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId: tenantId! }
 
     if (customerId) {
@@ -159,6 +161,38 @@ export async function POST(req: Request) {
     const updatedCustomer = await prisma.customer.findUnique({
       where: { id: body.customerId },
     })
+
+    // Send SMS notification (fire-and-forget — don't block or fail the payment)
+    if (customer.phone) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId! },
+        select: {
+          name: true,
+          enableSmsNotifications: true,
+          hubtelClientId: true,
+          hubtelClientSecret: true,
+          hubtelSenderId: true,
+        },
+      })
+      if (
+        tenant?.enableSmsNotifications &&
+        tenant.hubtelClientId &&
+        tenant.hubtelClientSecret &&
+        tenant.hubtelSenderId
+      ) {
+        const message = buildPaymentReceivedSms({
+          businessName: tenant.name,
+          customerName: customer.name,
+          amount,
+          balance: updatedCustomer?.balance ?? 0,
+        })
+        sendSms(
+          { clientId: tenant.hubtelClientId, clientSecret: tenant.hubtelClientSecret, senderId: tenant.hubtelSenderId },
+          customer.phone,
+          message,
+        ).catch(() => {}) // silent fail
+      }
+    }
 
     return NextResponse.json(
       {

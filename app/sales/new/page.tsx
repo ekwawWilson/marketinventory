@@ -11,7 +11,7 @@ export default function NewSalePage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [lastSaleId, setLastSaleId] = useState<string | null>(null)
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: unknown) => {
     const response = await fetch('/api/sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

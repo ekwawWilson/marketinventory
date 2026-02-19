@@ -21,6 +21,8 @@ export default function NewItemPage() {
   const [enableRetailPrice, setEnableRetailPrice] = useState(false)
   const [enableWholesalePrice, setEnableWholesalePrice] = useState(false)
   const [enablePromoPrice, setEnablePromoPrice] = useState(false)
+  const [enableExpiryTracking, setEnableExpiryTracking] = useState(false)
+  const [enablePosTerminal, setEnablePosTerminal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -33,6 +35,8 @@ export default function NewItemPage() {
       if (tenantData?.enableRetailPrice) setEnableRetailPrice(true)
       if (tenantData?.enableWholesalePrice) setEnableWholesalePrice(true)
       if (tenantData?.enablePromoPrice) setEnablePromoPrice(true)
+      if (tenantData?.enableExpiryTracking) setEnableExpiryTracking(true)
+      if (tenantData?.enablePosTerminal) setEnablePosTerminal(true)
     }).catch(() => {
       alert('Failed to load data')
     }).finally(() => setIsLoading(false))
@@ -94,6 +98,8 @@ export default function NewItemPage() {
             enableRetailPrice={enableRetailPrice}
             enableWholesalePrice={enableWholesalePrice}
             enablePromoPrice={enablePromoPrice}
+            enableExpiryTracking={enableExpiryTracking}
+            enablePosTerminal={enablePosTerminal}
           />
         </div>
       </div>

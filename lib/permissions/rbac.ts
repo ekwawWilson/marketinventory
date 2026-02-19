@@ -74,6 +74,24 @@ export const PERMISSIONS = {
     'create_purchase',
     'process_returns',
 
+    // Expenses
+    'create_expenses',
+    'view_expenses',
+    'delete_expenses',
+
+    // Till
+    'manage_till',
+
+    // Quotations
+    'create_quotation',
+    'view_quotations',
+    'delete_quotation',
+
+    // Purchase Orders
+    'create_purchase_order',
+    'view_purchase_orders',
+    'delete_purchase_order',
+
     // View
     'view_basic_reports',
     'view_items',
@@ -111,6 +129,24 @@ export const PERMISSIONS = {
     'create_purchase',
     'process_returns',
 
+    // Expenses
+    'create_expenses',
+    'view_expenses',
+    'delete_expenses',
+
+    // Till
+    'manage_till',
+
+    // Quotations
+    'create_quotation',
+    'view_quotations',
+    'delete_quotation',
+
+    // Purchase Orders
+    'create_purchase_order',
+    'view_purchase_orders',
+    'delete_purchase_order',
+
     // View
     'view_basic_reports',
     'view_items',
@@ -122,6 +158,13 @@ export const PERMISSIONS = {
     // Sales & Payments
     'create_sale',
     'record_payments',
+
+    // Till
+    'manage_till',
+
+    // Quotations
+    'create_quotation',
+    'view_quotations',
 
     // Limited customer management
     'create_customers',
@@ -146,6 +189,10 @@ export const PERMISSIONS = {
     'create_suppliers',
     'update_suppliers',
 
+    // Purchase Orders
+    'create_purchase_order',
+    'view_purchase_orders',
+
     // View
     'view_basic_reports',
     'view_items',
@@ -160,6 +207,9 @@ export const PERMISSIONS = {
     'view_profit_margins',
     'record_payments',
     'adjust_balances',
+
+    // Expenses (view only)
+    'view_expenses',
 
     // View
     'view_basic_reports',

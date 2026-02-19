@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { CustomersTable } from '@/components/tables/CustomersTable'
 import { CustomerWithSummary } from '@/types'
 import { formatCurrency } from '@/lib/utils/format'
+import { ExportButton } from '@/components/ExportButton'
 
 /**
  * Debtors Report Page
@@ -48,12 +49,22 @@ export default function DebtorsReportPage() {
               Customers with outstanding balances
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 self-start sm:self-auto print:hidden"
-          >
-            🖨️ Print / PDF
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <ExportButton
+              filename="debtors-report"
+              getData={() => customers.map(c => ({
+                Customer: c.name,
+                Phone: (c as { phone?: string }).phone || '',
+                'Balance Owed (GHS)': c.balance.toFixed(2),
+              }))}
+            />
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 self-start sm:self-auto"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}

@@ -21,12 +21,15 @@ export default function ItemDetailPage() {
   const itemId = params.id as string
   const { user } = useUser()
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [item, setItem] = useState<any>(null)
   const [manufacturers, setManufacturers] = useState<{ id: string; name: string }[]>([])
   const [useUnitSystem, setUseUnitSystem] = useState(false)
   const [enableRetailPrice, setEnableRetailPrice] = useState(false)
   const [enableWholesalePrice, setEnableWholesalePrice] = useState(false)
   const [enablePromoPrice, setEnablePromoPrice] = useState(false)
+  const [enableExpiryTracking, setEnableExpiryTracking] = useState(false)
+  const [enablePosTerminal, setEnablePosTerminal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -44,6 +47,8 @@ export default function ItemDetailPage() {
         if (data?.enableRetailPrice) setEnableRetailPrice(true)
         if (data?.enableWholesalePrice) setEnableWholesalePrice(true)
         if (data?.enablePromoPrice) setEnablePromoPrice(true)
+        if (data?.enableExpiryTracking) setEnableExpiryTracking(true)
+        if (data?.enablePosTerminal) setEnablePosTerminal(true)
       })
       .catch(() => {})
   }, [user?.tenantId])
@@ -208,6 +213,21 @@ export default function ItemDetailPage() {
             <p className="text-xs font-semibold text-gray-500 uppercase">Stock Value</p>
             <p className="text-xl font-bold text-indigo-600 mt-1">{formatCurrency(item.quantity * item.costPrice)}</p>
           </div>
+          {item.expiryDate && (() => {
+            const exp = new Date(item.expiryDate)
+            const isExpired = exp < new Date()
+            const isSoon = !isExpired && exp <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            return (
+              <div className={`rounded-xl p-4 border-2 col-span-2 lg:col-span-1 ${isExpired ? 'bg-red-50 border-red-300' : isSoon ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-200'}`}>
+                <p className={`text-xs font-semibold uppercase ${isExpired ? 'text-red-500' : isSoon ? 'text-orange-500' : 'text-gray-500'}`}>Expiry Date</p>
+                <p className={`text-lg font-bold mt-1 ${isExpired ? 'text-red-700' : isSoon ? 'text-orange-700' : 'text-gray-900'}`}>
+                  {isExpired ? '⚠ ' : isSoon ? '⏰ ' : ''}{exp.toLocaleDateString()}
+                </p>
+                {isExpired && <p className="text-xs text-red-600 mt-0.5">This item has expired</p>}
+                {isSoon && <p className="text-xs text-orange-600 mt-0.5">Expires within 30 days</p>}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Edit form */}
@@ -226,6 +246,7 @@ export default function ItemDetailPage() {
                 retailPrice: item.retailPrice,
                 wholesalePrice: item.wholesalePrice,
                 promoPrice: item.promoPrice,
+                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
               }}
               manufacturers={manufacturers}
               onSubmit={handleSubmit}
@@ -234,6 +255,8 @@ export default function ItemDetailPage() {
               enableRetailPrice={enableRetailPrice}
               enableWholesalePrice={enableWholesalePrice}
               enablePromoPrice={enablePromoPrice}
+              enableExpiryTracking={enableExpiryTracking}
+              enablePosTerminal={enablePosTerminal}
             />
           </div>
         ) : (
@@ -250,6 +273,7 @@ export default function ItemDetailPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No sales recorded yet</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {saleItems.map((si: any) => (
                     <div key={si.id} className="px-5 py-3 flex items-center justify-between">
                       <div>
@@ -278,6 +302,7 @@ export default function ItemDetailPage() {
                 <p className="text-sm text-gray-500 px-5 py-8 text-center">No purchases recorded yet</p>
               ) : (
                 <div className="divide-y divide-gray-100">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {purchaseItems.map((pi: any) => (
                     <div key={pi.id} className="px-5 py-3 flex items-center justify-between">
                       <div>

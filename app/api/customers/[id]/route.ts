@@ -29,6 +29,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const salesWhere: any = {}
     if (startDate || endDate) {
       salesWhere.createdAt = {}
@@ -40,6 +41,7 @@ export async function GET(req: Request, { params }: RouteParams) {
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const paymentsWhere: any = { customerId: id, tenantId }
     if (startDate || endDate) {
       paymentsWhere.createdAt = {}
