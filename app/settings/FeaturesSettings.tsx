@@ -14,6 +14,7 @@ interface FeaturesSettingsProps {
     enableCreditSales: boolean
     enableExpenses: boolean
     enableTill: boolean
+    allowSaleOnZeroStock: boolean
   }
 }
 
@@ -139,6 +140,18 @@ export function FeaturesSettings({ tenantId, initialSettings }: FeaturesSettings
           label: 'Expiry Date Tracking',
           icon: '📅',
           desc: 'Track expiry dates on items. Get alerts for items expiring within 30 days. Ideal for pharmacies, food stores, and FMCG businesses.',
+        },
+      ],
+    },
+    {
+      label: 'Sales Behaviour',
+      icon: '🛒',
+      items: [
+        {
+          key: 'allowSaleOnZeroStock',
+          label: 'Allow Sales on Zero Stock',
+          icon: '⚡',
+          desc: 'Let cashiers sell items even when stock is at zero. Useful when stock updates lag behind actual arrivals. A warning is still shown so cashiers stay aware.',
         },
       ],
     },

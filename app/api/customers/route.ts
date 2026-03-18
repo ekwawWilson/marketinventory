@@ -110,33 +110,25 @@ export async function POST(req: Request) {
       )
     }
 
-    // Check for duplicate customer name or phone
+    // Check for duplicate: same name + same phone combination within tenant.
+    // If no phone is provided, match on name alone (two nameless entries with
+    // the same name are still considered duplicates).
     const existing = await prisma.customer.findFirst({
       where: {
         tenantId,
-        OR: [
-          {
-            name: {
-              equals: body.name.trim(),
-              mode: 'insensitive' as const,
-            },
-          },
-          ...(body.phone
-            ? [
-                {
-                  phone: body.phone.trim(),
-                },
-              ]
-            : []),
-        ],
+        name: {
+          equals: body.name.trim(),
+          mode: 'insensitive' as const,
+        },
+        phone: body.phone ? body.phone.trim() : null,
       },
     })
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'A customer with this name or phone already exists' },
-        { status: 409 }
-      )
+      const detail = body.phone
+        ? 'A customer with this name and phone number already exists'
+        : 'A customer with this name (and no phone) already exists'
+      return NextResponse.json({ error: detail }, { status: 409 })
     }
 
     // Create customer

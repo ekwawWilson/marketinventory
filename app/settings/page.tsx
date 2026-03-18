@@ -53,6 +53,7 @@ export default async function SettingsPage() {
       enableCreditSales: true,
       enableExpenses: true,
       enableTill: true,
+      allowSaleOnZeroStock: true,
     },
   })
 
@@ -138,6 +139,7 @@ export default async function SettingsPage() {
             enableCreditSales: tenant.enableCreditSales,
             enableExpenses: tenant.enableExpenses,
             enableTill: tenant.enableTill,
+            allowSaleOnZeroStock: tenant.allowSaleOnZeroStock,
           }}
         />
 

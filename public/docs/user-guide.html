@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PETROS Business — User Guide</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #1e293b;
+      background: #f8fafc;
+    }
+
+    /* ─── Cover Page ───────────────────────────────────── */
+    .cover {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #0ea5e9 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .cover-logo {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.15);
+      border: 3px solid rgba(255,255,255,0.4);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+    .cover h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+    .cover .sub { font-size: 1.15rem; opacity: 0.85; margin-bottom: 6px; }
+    .cover .edition {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      padding: 4px 18px;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 12px;
+    }
+    .cover-divider {
+      width: 60px; height: 3px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 2px;
+      margin: 24px auto;
+    }
+    .cover-tagline {
+      font-size: 1rem;
+      opacity: 0.75;
+      max-width: 380px;
+    }
+
+    /* ─── Layout ───────────────────────────────────────── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+    /* ─── Chapter headers ──────────────────────────────── */
+    .chapter {
+      background: linear-gradient(135deg, #1e3a5f, #2563eb);
+      color: #fff;
+      padding: 60px 40px 40px;
+      margin: 60px 0 0;
+    }
+    .chapter-num {
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      opacity: 0.65;
+      margin-bottom: 8px;
+    }
+    .chapter h2 { font-size: 2rem; font-weight: 800; }
+    .chapter .lead { margin-top: 10px; opacity: 0.8; font-size: 1.05rem; }
+
+    /* ─── Section cards ────────────────────────────────── */
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin: 24px 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .card h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1e3a5f;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .card h3 .icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Steps ────────────────────────────────────────── */
+    .steps { counter-reset: step; list-style: none; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(step);
+      min-width: 28px; height: 28px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .steps li p { margin: 0; }
+    .steps li strong { color: #1e3a5f; }
+
+    /* ─── Tips ─────────────────────────────────────────── */
+    .tip {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 18px;
+      margin: 16px 0;
+      font-size: 0.95rem;
+    }
+    .tip strong { color: #1e40af; }
+
+    .warn {
+      background: #fff7ed;
+      border-left: 4px solid #f97316;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 18px;
+      margin: 16px 0;
+      font-size: 0.95rem;
+    }
+    .warn strong { color: #c2410c; }
+
+    /* ─── Two-column grid ──────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+    @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ─── Mini cards ───────────────────────────────────── */
+    .mini-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .mini-card .mc-icon { font-size: 24px; margin-bottom: 6px; }
+    .mini-card h4 { font-size: 0.95rem; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; }
+    .mini-card p { font-size: 0.88rem; color: #475569; margin: 0; }
+
+    /* ─── Badges ───────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-blue  { background: #dbeafe; color: #1e40af; }
+    .badge-orange{ background: #fff7ed; color: #c2410c; }
+    .badge-purple{ background: #f3e8ff; color: #6b21a8; }
+
+    /* ─── Table ────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.93rem; margin: 16px 0; }
+    th { background: #1e3a5f; color: #fff; text-align: left; padding: 10px 14px; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover td { background: #f8fafc; }
+
+    /* ─── Screen mockup ────────────────────────────────── */
+    .screen {
+      background: #0f172a;
+      border-radius: 14px;
+      padding: 20px;
+      color: #e2e8f0;
+      font-family: monospace;
+      font-size: 0.82rem;
+      margin: 18px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .screen::before {
+      content: '● ● ●';
+      display: block;
+      color: #475569;
+      margin-bottom: 12px;
+      letter-spacing: 4px;
+    }
+    .screen .s-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1e293b; }
+    .screen .s-label { color: #94a3b8; }
+    .screen .s-val { color: #38bdf8; font-weight: 600; }
+    .screen .s-total { color: #4ade80; font-weight: 700; font-size: 1.1rem; }
+
+    /* ─── Page break helpers ───────────────────────────── */
+    @media print {
+      .chapter { page-break-before: always; }
+      .cover { min-height: auto; page-break-after: always; }
+      body { background: #fff; }
+      .no-print { display: none; }
+    }
+
+    /* ─── TOC ──────────────────────────────────────────── */
+    .toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; margin: 40px auto; max-width: 860px; }
+    .toc h2 { font-size: 1.3rem; color: #1e3a5f; margin-bottom: 20px; font-weight: 700; }
+    .toc ol { padding-left: 0; list-style: none; }
+    .toc li {
+      padding: 10px 0;
+      border-bottom: 1px dashed #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 0.97rem;
+    }
+    .toc li:last-child { border-bottom: none; }
+    .toc-num {
+      width: 28px; height: 28px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .toc a { color: #1e3a5f; text-decoration: none; font-weight: 600; }
+    .toc a:hover { color: #2563eb; }
+    .toc-pg { margin-left: auto; color: #94a3b8; font-size: 0.85rem; }
+
+    /* ─── Checklist ────────────────────────────────────── */
+    .checklist { list-style: none; }
+    .checklist li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 0.95rem; }
+    .checklist li::before { content: '✓'; color: #16a34a; font-weight: 800; flex-shrink: 0; margin-top: 2px; }
+
+    /* ─── Footer ───────────────────────────────────────── */
+    footer {
+      background: #1e3a5f;
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      padding: 40px 24px;
+      margin-top: 80px;
+      font-size: 0.9rem;
+    }
+    footer strong { color: #fff; }
+
+    /* ─── Spacers ──────────────────────────────────────── */
+    .mt4 { margin-top: 16px; }
+    .mt6 { margin-top: 24px; }
+    .content-area { padding-bottom: 40px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  COVER                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">🛍️</div>
+  <h1>PETROS Business</h1>
+  <p class="sub">Simple User Guide</p>
+  <span class="edition">For Market Women &amp; Small Shops</span>
+  <div class="cover-divider"></div>
+  <p class="cover-tagline">Learn how to record sales, manage stock, and track your money — step by step, no tech skills needed.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  TABLE OF CONTENTS                                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="toc container">
+  <h2>📋 What You Will Learn</h2>
+  <ol>
+    <li>
+      <span class="toc-num">1</span>
+      <a href="#ch1">Getting Started — Logging In</a>
+      <span class="toc-pg">Basics</span>
+    </li>
+    <li>
+      <span class="toc-num">2</span>
+      <a href="#ch2">Adding Your Products (Items)</a>
+      <span class="toc-pg">Stock</span>
+    </li>
+    <li>
+      <span class="toc-num">3</span>
+      <a href="#ch3">Recording a Sale</a>
+      <span class="toc-pg">Sales</span>
+    </li>
+    <li>
+      <span class="toc-num">4</span>
+      <a href="#ch4">Quick Checkout with POS</a>
+      <span class="toc-pg">POS</span>
+    </li>
+    <li>
+      <span class="toc-num">5</span>
+      <a href="#ch5">Recording a Purchase (Buying Stock)</a>
+      <span class="toc-pg">Purchases</span>
+    </li>
+    <li>
+      <span class="toc-num">6</span>
+      <a href="#ch6">Managing Customers</a>
+      <span class="toc-pg">Customers</span>
+    </li>
+    <li>
+      <span class="toc-num">7</span>
+      <a href="#ch7">Collecting Debt Payments</a>
+      <span class="toc-pg">Payments</span>
+    </li>
+    <li>
+      <span class="toc-num">8</span>
+      <a href="#ch8">Processing Returns</a>
+      <span class="toc-pg">Returns</span>
+    </li>
+    <li>
+      <span class="toc-num">9</span>
+      <a href="#ch9">Checking Your Reports</a>
+      <span class="toc-pg">Reports</span>
+    </li>
+    <li>
+      <span class="toc-num">10</span>
+      <a href="#ch10">Tips &amp; Common Mistakes</a>
+      <span class="toc-pg">Help</span>
+    </li>
+  </ol>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 1 — GETTING STARTED                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch1" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 1</p>
+    <h2>Getting Started — Logging In</h2>
+    <p class="lead">How to open the app and get into your account.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dbeafe">🔐</span> How to Log In</h3>
+    <ol class="steps">
+      <li><p>Open your browser (Chrome or Firefox) and go to the app website.</p></li>
+      <li><p>You will see a <strong>Login</strong> page. Type your <strong>Email Address</strong>.</p></li>
+      <li><p>Type your <strong>Password</strong>.</p></li>
+      <li><p>Click the blue <strong>"Sign In"</strong> button.</p></li>
+      <li><p>You will land on the <strong>Dashboard</strong> — the main home page of the app.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 Tip:</strong> If you forget your password, ask the business owner (Admin) to reset it for you.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">🏠</span> Understanding the Screen</h3>
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mc-icon">📋</div>
+        <h4>Left Side Menu (Sidebar)</h4>
+        <p>All the sections of the app — Sales, Stock, Reports, etc. Click any item to go there.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">📊</div>
+        <h4>Main Area</h4>
+        <p>The big area in the middle shows your information — lists, forms, and totals.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">📱</div>
+        <h4>Bottom Menu (Phone)</h4>
+        <p>On your phone, the menu appears at the bottom of the screen. Tap the icons to navigate.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">👤</div>
+        <h4>Your Name (Top Right)</h4>
+        <p>Shows who is logged in. Click it to sign out when you are done.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 2 — ADDING PRODUCTS                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch2" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 2</p>
+    <h2>Adding Your Products (Items)</h2>
+    <p class="lead">Before you can sell anything, you must add your goods into the system.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fef9c3">📦</span> Adding a New Product</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Inventory"</strong> in the left menu, then click <strong>"Items"</strong>.</p></li>
+      <li><p>Click the <strong>"+ Add Item"</strong> button (top right).</p></li>
+      <li><p>Fill in the form:</p></li>
+    </ol>
+
+    <table>
+      <tr>
+        <th>Field</th>
+        <th>What to Type</th>
+        <th>Example</th>
+      </tr>
+      <tr>
+        <td><strong>Item Name</strong></td>
+        <td>The name of the product</td>
+        <td>Bag of Sugar (50kg)</td>
+      </tr>
+      <tr>
+        <td><strong>Manufacturer / Brand</strong></td>
+        <td>Who makes it (optional)</td>
+        <td>Olam, Unilever</td>
+      </tr>
+      <tr>
+        <td><strong>Cost Price</strong></td>
+        <td>How much YOU paid for it</td>
+        <td>280.00</td>
+      </tr>
+      <tr>
+        <td><strong>Selling Price</strong></td>
+        <td>How much you sell it for</td>
+        <td>320.00</td>
+      </tr>
+      <tr>
+        <td><strong>Quantity</strong></td>
+        <td>How many you have right now</td>
+        <td>25</td>
+      </tr>
+    </table>
+
+    <ol class="steps" style="counter-reset: step 3;">
+      <li><p>Click <strong>"Save Item"</strong>. Done!</p></li>
+    </ol>
+
+    <div class="tip">
+      <strong>💡 Profit Helper:</strong> The app automatically shows you your profit margin as you type. A green number means you are making money. A red number means you are losing money — adjust your selling price!
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">⚠️</span> Stock Alerts — What the Colours Mean</h3>
+    <p>When you look at your items list, you will see coloured labels:</p>
+    <div class="mt4">
+      <p style="margin-bottom:10px"><span class="badge badge-green">✓ In Stock</span> — You have enough goods.</p>
+      <p style="margin-bottom:10px"><span class="badge badge-orange">⚠ Low Stock</span> — Less than 10 units left. Time to restock soon.</p>
+      <p style="margin-bottom:10px"><span class="badge" style="background:#fee2e2;color:#991b1b">✗ Out of Stock</span> — You have none left. Restock immediately!</p>
+    </div>
+    <div class="warn">
+      <strong>⚠ Watch Out:</strong> If a product is Out of Stock, you cannot sell it. Restock by recording a new purchase (Chapter 5).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#f3e8ff">✏️</span> Updating Stock or Price</h3>
+    <ol class="steps">
+      <li><p>Go to <strong>Inventory → Items</strong>.</p></li>
+      <li><p>Find the product you want to change. Click on its name.</p></li>
+      <li><p>Click the <strong>"Edit"</strong> button.</p></li>
+      <li><p>Change the price or quantity, then click <strong>"Save"</strong>.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 Better way to add stock:</strong> Instead of editing, use <strong>"Adjust Stock"</strong> on the items page. This keeps a proper record of why stock changed.
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 3 — RECORDING A SALE                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch3" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 3</p>
+    <h2>Recording a Sale</h2>
+    <p class="lead">Every time you sell goods, record it here so your stock reduces automatically.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">🧾</span> How to Record a Sale</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Sales"</strong> in the left menu, then <strong>"New Sale"</strong>.</p></li>
+      <li><p><strong>Customer (optional):</strong> If you know the customer, select their name from the list. If it is a stranger or cash buyer, leave this empty.</p></li>
+      <li><p>Click <strong>"+ Add Item"</strong> to add what you are selling.</p></li>
+      <li><p>Select the <strong>product name</strong> from the dropdown.</p></li>
+      <li><p>Enter the <strong>quantity</strong> sold.</p></li>
+      <li><p>The price fills in automatically. You can change it if you gave a discount.</p></li>
+      <li><p>Add more items if the customer bought more than one thing.</p></li>
+      <li><p>Enter how much the customer <strong>paid</strong> in the "Amount Paid" box.</p></li>
+      <li><p>Choose <strong>Payment Method</strong>: Cash, MoMo, or Bank.</p></li>
+      <li><p>Click <strong>"Record Sale"</strong>.</p></li>
+    </ol>
+
+    <div class="tip">
+      <strong>💡 Paid less than the total?</strong> If the customer paid less than the full amount, that means they owe you money (credit). The system will record this as a debt automatically.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dbeafe">🖨️</span> After Recording — What Happens Next?</h3>
+    <p>After saving a sale, you will see a green success screen with three choices:</p>
+    <div class="two-col mt4">
+      <div class="mini-card">
+        <div class="mc-icon">🖨️</div>
+        <h4>Print Receipt</h4>
+        <p>Prints or saves a receipt to give to the customer.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">➕</div>
+        <h4>New Sale</h4>
+        <p>Starts a new blank sale form for the next customer.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">📋</div>
+        <h4>View All Sales</h4>
+        <p>Goes back to the full list of all sales you have made.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">🔄</div>
+        <h4>Process Return</h4>
+        <p>If the customer wants to return something from this sale.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fef9c3">📋</span> Viewing Past Sales</h3>
+    <ol class="steps">
+      <li><p>Click <strong>Sales → All Sales</strong> in the menu.</p></li>
+      <li><p>You will see a list of all sales. The newest ones are at the top.</p></li>
+      <li><p>Use the <strong>search box</strong> to find a specific customer or date.</p></li>
+      <li><p>Click on any sale to see the full receipt and details.</p></li>
+    </ol>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 4 — POS QUICK CHECKOUT                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch4" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 4</p>
+    <h2>Quick Checkout with POS</h2>
+    <p class="lead">The POS (Point of Sale) screen is a fast checkout till — perfect for busy markets.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">🏪</span> What is the POS Screen?</h3>
+    <p>The POS Terminal is a special full-screen checkout page. It is faster than the normal sale form and works like a till machine in a supermarket. You can scan barcodes or just tap/click items to add them to the basket.</p>
+    <div class="tip">
+      <strong>💡 When to use POS:</strong> Use the POS for fast cash sales when customers are standing in front of you. Use the normal Sale Form (Chapter 3) for credit sales or when you need to record more details.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fef9c3">⚡</span> How to Use the POS</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"POS Terminal"</strong> in the left menu. The screen will go full size.</p></li>
+      <li><p><strong>Find your item</strong> — Type the item name in the search box at the top. The matching items appear below as big tiles.</p></li>
+      <li><p>Click on an item tile to <strong>add it to the cart</strong> (basket) on the right.</p></li>
+      <li><p>To <strong>change the quantity</strong>, click the item in the cart then use the number pad to type the correct amount.</p></li>
+      <li><p>Select how the customer is paying — <strong>Cash 💵</strong>, <strong>MoMo 📱</strong>, or <strong>Bank 🏦</strong>.</p></li>
+      <li><p>If paying cash, type how much the customer gave you in the <strong>"Cash Tendered"</strong> box. The change amount shows automatically.</p></li>
+      <li><p>Click the big green <strong>"Pay &amp; Checkout"</strong> button.</p></li>
+      <li><p>Done! The screen flashes green and is ready for the next customer.</p></li>
+    </ol>
+
+    <div class="screen">
+      <div class="s-row"><span class="s-label">Bag of Sugar (50kg)</span><span class="s-val">GHS 320.00</span></div>
+      <div class="s-row"><span class="s-label">Cooking Oil 1L × 3</span><span class="s-val">GHS 90.00</span></div>
+      <div class="s-row"><span class="s-label">Tomato Paste (tin)</span><span class="s-val">GHS 12.00</span></div>
+      <div class="s-row" style="border:none; padding-top:10px">
+        <span class="s-label">TOTAL</span>
+        <span class="s-total">GHS 422.00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">🗑️</span> Removing Items from the Cart</h3>
+    <p>If you added the wrong item:</p>
+    <ol class="steps">
+      <li><p>Click on the item in the cart to select it (it gets highlighted).</p></li>
+      <li><p>Press the <strong>delete (trash) button</strong> next to the item, or set the quantity to 0 using the number pad.</p></li>
+    </ol>
+    <p>To clear everything and start fresh, click the <strong>"Clear Cart"</strong> button.</p>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 5 — RECORDING A PURCHASE                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch5" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 5</p>
+    <h2>Recording a Purchase (Buying Stock)</h2>
+    <p class="lead">When you buy goods from a supplier, record it here so your stock increases automatically.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#f3e8ff">🚛</span> How to Record a Purchase</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Purchasing"</strong> in the left menu, then <strong>"New Purchase"</strong>.</p></li>
+      <li><p>Select your <strong>Supplier</strong> from the list. (If they are not listed, add them first — see below.)</p></li>
+      <li><p>Click <strong>"+ Add Item"</strong> to choose what you bought.</p></li>
+      <li><p>Select the <strong>product name</strong>. If it is a new product, create it in Items first (Chapter 2).</p></li>
+      <li><p>Enter the <strong>quantity</strong> you bought.</p></li>
+      <li><p>Enter the <strong>cost price</strong> per unit (what you paid).</p></li>
+      <li><p>Add more items if you bought multiple products from the same supplier.</p></li>
+      <li><p>Enter how much you <strong>already paid</strong> the supplier.</p></li>
+      <li><p>Click <strong>"Record Purchase"</strong>.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 Paid less than the total?</strong> If you have not paid the supplier fully yet, type only what you paid. The remaining amount will show as money you owe the supplier.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">✅</span> What Happens After?</h3>
+    <ul class="checklist">
+      <li>Your stock for those products goes <strong>up</strong> automatically.</li>
+      <li>Your supplier balance is updated (if you did not pay in full).</li>
+      <li>The purchase is saved in <strong>Purchasing → All Purchases</strong> for your records.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fef9c3">👤</span> Adding a New Supplier</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Purchasing"</strong> in the menu, then <strong>"Suppliers"</strong>.</p></li>
+      <li><p>Click <strong>"+ New Supplier"</strong>.</p></li>
+      <li><p>Enter the supplier's name, phone number, and any notes.</p></li>
+      <li><p>Click <strong>"Save"</strong>.</p></li>
+    </ol>
+    <p class="mt4">Now you can select this supplier when recording purchases.</p>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 6 — MANAGING CUSTOMERS                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch6" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 6</p>
+    <h2>Managing Customers</h2>
+    <p class="lead">Keep track of the people you sell to — especially those who owe you money.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dbeafe">👥</span> Adding a New Customer</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"CRM"</strong> in the menu, then <strong>"Customers"</strong>.</p></li>
+      <li><p>Click <strong>"+ New Customer"</strong>.</p></li>
+      <li><p>Enter their <strong>name</strong> and <strong>phone number</strong>.</p></li>
+      <li><p>Click <strong>"Save"</strong>.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 Why add customers?</strong> When you add customers, you can track who owes you money (credit sales), see their purchase history, and contact them later.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">💰</span> Tracking Who Owes You (Debtors)</h3>
+    <p>Go to <strong>CRM → Customers</strong>. You will see three tabs:</p>
+    <div class="mt4">
+      <p style="margin-bottom: 10px"><span class="badge badge-blue">All</span> — Shows every customer.</p>
+      <p style="margin-bottom: 10px"><span class="badge badge-orange">Debtors</span> — Shows only customers who still owe you money.</p>
+      <p style="margin-bottom: 10px"><span class="badge badge-green">Paid Up</span> — Shows customers with no outstanding balance.</p>
+    </div>
+    <p class="mt4">Click on any customer name to see their full history — all their sales and payments.</p>
+    <div class="warn">
+      <strong>⚠ Important:</strong> A customer only appears in your sales form if they are added here first. For strangers who pay cash, you do not need to add them.
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 7 — COLLECTING PAYMENTS                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch7" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 7</p>
+    <h2>Collecting Debt Payments</h2>
+    <p class="lead">When a customer pays back money they owe you, record it here.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">💵</span> Recording a Customer Payment</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Finance"</strong> in the menu, then <strong>"Payments → Customers"</strong>.</p></li>
+      <li><p>Select the <strong>customer's name</strong> from the dropdown. Only customers who owe you money will appear here.</p></li>
+      <li><p>Enter the <strong>amount they are paying</strong> today.</p></li>
+      <li><p>Choose the payment method: <strong>Cash, MoMo, or Bank</strong>.</p></li>
+      <li><p>Click <strong>"Record Payment"</strong>.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 Shortcut:</strong> You can also go to CRM → Customers, click on the customer's name, and then click <strong>"Record Payment"</strong> directly from their profile page.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#f3e8ff">🏢</span> Paying a Supplier (Money You Owe)</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Finance"</strong> in the menu, then <strong>"Payments → Suppliers"</strong>.</p></li>
+      <li><p>Select the <strong>supplier</strong> you are paying.</p></li>
+      <li><p>Enter the amount and payment method.</p></li>
+      <li><p>Click <strong>"Record Payment"</strong>.</p></li>
+    </ol>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 8 — PROCESSING RETURNS                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch8" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 8</p>
+    <h2>Processing Returns</h2>
+    <p class="lead">When a customer brings goods back, or when you return goods to a supplier.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">🔄</span> Customer Return (Goods Brought Back to You)</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Returns"</strong> in the left menu.</p></li>
+      <li><p>Click the <strong>"Customer Return"</strong> button at the top.</p></li>
+      <li><p>Enter the <strong>Sale ID</strong> (the sale number, shown on the receipt). Click <strong>"Look Up"</strong>.</p></li>
+      <li><p>Select the <strong>item being returned</strong> from the dropdown.</p></li>
+      <li><p>Enter the <strong>quantity</strong> being returned.</p></li>
+      <li><p>Choose the <strong>Return Type</strong>:</p></li>
+    </ol>
+
+    <div class="two-col mt4">
+      <div class="mini-card">
+        <div class="mc-icon">💵</div>
+        <h4>Cash Refund</h4>
+        <p>You give the customer their money back.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">📋</div>
+        <h4>Store Credit</h4>
+        <p>The customer gets credit to buy something else later.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">🔄</div>
+        <h4>Exchange</h4>
+        <p>The customer swaps the item for a different one.</p>
+      </div>
+      <div class="mini-card" style="opacity:0.4;">
+        <div class="mc-icon">—</div>
+        <h4>&nbsp;</h4>
+        <p>&nbsp;</p>
+      </div>
+    </div>
+
+    <ol class="steps" style="counter-reset: step 6; margin-top: 16px">
+      <li><p>Enter the <strong>refund amount</strong>. (The app can calculate it for you — click the auto-fill button.)</p></li>
+      <li><p>Click <strong>"Process Return"</strong>. Done!</p></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#f3e8ff">🚛</span> Supplier Return (You Send Goods Back to Supplier)</h3>
+    <p>This works the same way, but use the <strong>"Supplier Return"</strong> button instead.</p>
+    <ol class="steps">
+      <li><p>Click <strong>"Returns"</strong> → <strong>"Supplier Return"</strong>.</p></li>
+      <li><p>Enter the <strong>Purchase ID</strong> from your purchase records.</p></li>
+      <li><p>Select the item, quantity, return type, and amount.</p></li>
+      <li><p>Click <strong>"Process Return"</strong>.</p></li>
+    </ol>
+    <div class="tip">
+      <strong>💡 You can also process returns</strong> directly from a sale or purchase detail page — look for the orange <strong>"Process Return"</strong> button on the receipt.
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 9 — REPORTS                                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch9" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 9</p>
+    <h2>Checking Your Reports</h2>
+    <p class="lead">See how your business is doing — daily, weekly, or any time period you choose.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">📈</span> Sales Report</h3>
+    <ol class="steps">
+      <li><p>Click <strong>"Reports"</strong> in the menu, then <strong>"Sales Report"</strong>.</p></li>
+      <li><p>Choose a <strong>start date</strong> and <strong>end date</strong> (e.g., the start and end of this week).</p></li>
+      <li><p>The report will show you:</p></li>
+    </ol>
+    <div class="two-col mt4">
+      <div class="mini-card">
+        <div class="mc-icon">💰</div>
+        <h4>Total Sales</h4>
+        <p>All the money from sales in that period.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">✅</div>
+        <h4>Total Collected</h4>
+        <p>Money you have actually received in hand.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">⏳</div>
+        <h4>Credit / Debt</h4>
+        <p>Money that customers still owe you from sales.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">📥</div>
+        <h4>Export to Excel</h4>
+        <p>Download the data as a spreadsheet file.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fef9c3">📦</span> Inventory Report</h3>
+    <p>Go to <strong>Reports → Inventory Report</strong>. This shows:</p>
+    <ul class="checklist mt4">
+      <li>What products you have and how many.</li>
+      <li>The total value of all your stock.</li>
+      <li>Which items are running low.</li>
+    </ul>
+    <p class="mt4">Use this every week to know what you need to restock.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dbeafe">📅</span> End of Day Report</h3>
+    <p>Go to <strong>Reports → End of Day</strong>. Run this at the end of every trading day to see:</p>
+    <ul class="checklist mt4">
+      <li>Total sales for the day.</li>
+      <li>Cash, MoMo, and Bank amounts collected.</li>
+      <li>Number of transactions completed.</li>
+    </ul>
+    <div class="tip">
+      <strong>💡 Good habit:</strong> Run the End of Day report every evening before closing your shop. Print or screenshot it for your daily records.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">👥</span> Debtors &amp; Creditors Reports</h3>
+    <p>These reports show all money owed:</p>
+    <div class="two-col mt4">
+      <div class="mini-card">
+        <div class="mc-icon">👥</div>
+        <h4>Debtors Report</h4>
+        <p>Lists all customers who still owe you money. Go to <strong>Reports → Debtors</strong>.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mc-icon">🏢</div>
+        <h4>Creditors Report</h4>
+        <p>Lists all suppliers you still owe money to. Go to <strong>Reports → Creditors</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  CHAPTER 10 — TIPS & COMMON MISTAKES                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="ch10" class="chapter">
+  <div class="container">
+    <p class="chapter-num">Chapter 10</p>
+    <h2>Tips &amp; Common Mistakes</h2>
+    <p class="lead">Things to know to avoid problems and use the app well every day.</p>
+  </div>
+</div>
+<div class="container content-area">
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dcfce7">✅</span> Good Daily Habits</h3>
+    <ul class="checklist">
+      <li>Record every sale in the app — even if it is small. This keeps your stock accurate.</li>
+      <li>Record every purchase immediately when new goods arrive — so your stock goes up right away.</li>
+      <li>Run the End of Day report every evening to verify your totals.</li>
+      <li>Log out of the app when you leave your phone or computer unattended.</li>
+      <li>Check the <strong>Low Stock</strong> tab in Inventory at least twice a week so you don't run out unexpectedly.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#fee2e2">❌</span> Common Mistakes to Avoid</h3>
+    <table>
+      <tr>
+        <th>Mistake</th>
+        <th>What to Do Instead</th>
+      </tr>
+      <tr>
+        <td>Recording a sale without the item in stock</td>
+        <td>First record a purchase to add the stock, then sell it</td>
+      </tr>
+      <tr>
+        <td>Setting selling price lower than cost price</td>
+        <td>Check the profit margin (it turns red) — raise your selling price</td>
+      </tr>
+      <tr>
+        <td>Forgetting to record when a customer pays back debt</td>
+        <td>Always go to Payments → Customers after receiving any debt payment</td>
+      </tr>
+      <tr>
+        <td>Typing the wrong quantity</td>
+        <td>Double-check before clicking Save. You can edit the sale afterwards if needed</td>
+      </tr>
+      <tr>
+        <td>Not adding customers before a credit sale</td>
+        <td>Add the customer in CRM → Customers first, then record the sale</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#dbeafe">❓</span> Quick Reference — Where Is Everything?</h3>
+    <table>
+      <tr>
+        <th>What You Want to Do</th>
+        <th>Where to Go</th>
+      </tr>
+      <tr><td>Record a sale</td><td>Sales → New Sale</td></tr>
+      <tr><td>Fast checkout (POS)</td><td>POS Terminal</td></tr>
+      <tr><td>Buy new stock</td><td>Purchasing → New Purchase</td></tr>
+      <tr><td>Check stock levels</td><td>Inventory → Items</td></tr>
+      <tr><td>Add a new product</td><td>Inventory → Items → + Add Item</td></tr>
+      <tr><td>Add a customer</td><td>CRM → Customers → + New Customer</td></tr>
+      <tr><td>Add a supplier</td><td>Purchasing → Suppliers → + New Supplier</td></tr>
+      <tr><td>Record customer payment</td><td>Finance → Payments → Customers</td></tr>
+      <tr><td>Process a return</td><td>Returns → Customer Return or Supplier Return</td></tr>
+      <tr><td>See today's sales total</td><td>Reports → End of Day</td></tr>
+      <tr><td>See who owes you money</td><td>Reports → Debtors  <em>or</em>  CRM → Customers → Debtors tab</td></tr>
+      <tr><td>Download sales data</td><td>Reports → Sales Report → Export CSV</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon" style="background:#f3e8ff">📞</span> Need Help?</h3>
+    <p>If something does not work or you are not sure what to do:</p>
+    <ul class="checklist mt4">
+      <li>Ask the business owner or Admin user in your company for help.</li>
+      <li>Contact PETROS Business support for technical issues.</li>
+      <li>Do <strong>not</strong> guess when recording amounts — it is better to ask than to enter wrong numbers.</li>
+    </ul>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  FOOTER                                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<footer>
+  <p><strong>PETROS Business Management Mini</strong></p>
+  <p style="margin-top:6px">Simple User Guide — For Market Women &amp; Small Shops</p>
+  <p style="margin-top:12px; font-size:0.8rem; opacity:0.55">© 2025 PETROS Business. All rights reserved.</p>
+</footer>
+
+</body>
+</html>

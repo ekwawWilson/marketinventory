@@ -121,10 +121,11 @@ export async function POST(req: Request) {
       )
     }
 
-    // Check for duplicate item name within tenant
+    // Check for duplicate: same name + same manufacturer within tenant
     const existing = await prisma.item.findFirst({
       where: {
         tenantId,
+        manufacturerId: body.manufacturerId,
         name: {
           equals: body.name.trim(),
           mode: 'insensitive' as const,
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { error: 'An item with this name already exists' },
+        { error: 'An item with this name already exists for this manufacturer' },
         { status: 409 }
       )
     }

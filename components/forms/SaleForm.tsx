@@ -118,6 +118,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
   const [enablePromoPrice, setEnablePromoPrice] = useState(false);
   const [enableDiscounts, setEnableDiscounts] = useState(false);
   const [enableCreditSales, setEnableCreditSales] = useState(false);
+  const [allowSaleOnZeroStock, setAllowSaleOnZeroStock] = useState(false);
   useEffect(() => {
     if (!user?.tenantId) return;
     fetch(`/api/tenants/${user.tenantId}`)
@@ -129,6 +130,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
         if (data?.enablePromoPrice) setEnablePromoPrice(true);
         if (data?.enableDiscounts) setEnableDiscounts(true);
         if (data?.enableCreditSales) setEnableCreditSales(true);
+        if (data?.allowSaleOnZeroStock) setAllowSaleOnZeroStock(true);
       })
       .catch(() => {});
   }, [user?.tenantId]);
@@ -152,6 +154,64 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const customerSearchRef = useRef<HTMLDivElement>(null);
   const [amountPaid, setAmountPaid] = useState("");
+
+  // ── Draft persistence ─────────────────────────────────────────────────────
+  const draftKey = user?.tenantId ? `sale_draft_${user.tenantId}` : null;
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // On mount: detect a saved draft and show restore banner
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) setHasDraft(true);
+    } catch {}
+  }, [draftKey]);
+
+  // Save draft whenever meaningful state changes
+  useEffect(() => {
+    if (!draftKey) return;
+    if (cart.length === 0 && !selectedCustomer && !amountPaid) return; // nothing to save
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        cart,
+        selectedCustomer,
+        paymentType,
+        paymentMethod,
+        discountType,
+        discountValue,
+        amountPaid,
+      }));
+    } catch {}
+  }, [draftKey, cart, selectedCustomer, paymentType, paymentMethod, discountType, discountValue, amountPaid]);
+
+  const restoreDraft = () => {
+    if (!draftKey) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.cart) setCart(d.cart);
+      if (d.selectedCustomer) setSelectedCustomer(d.selectedCustomer);
+      if (d.paymentType) setPaymentType(d.paymentType);
+      if (d.paymentMethod) setPaymentMethod(d.paymentMethod);
+      if (d.discountType) setDiscountType(d.discountType);
+      if (d.discountValue !== undefined) setDiscountValue(d.discountValue);
+      if (d.amountPaid !== undefined) setAmountPaid(d.amountPaid);
+    } catch {}
+    setHasDraft(false);
+  };
+
+  const discardDraft = () => {
+    if (!draftKey) return;
+    try { localStorage.removeItem(draftKey); } catch {}
+    setHasDraft(false);
+  };
+
+  const clearDraft = () => {
+    if (!draftKey) return;
+    try { localStorage.removeItem(draftKey); } catch {}
+  };
 
   const { items } = useItems();
   const { customers } = useCustomers();
@@ -227,7 +287,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
           quantity: 1,
           price: item.sellingPrice,
           discountAmount: 0,
-          maxStock: item.quantity,
+          maxStock: allowSaleOnZeroStock ? 99999 : item.quantity,
           unitName: item.unitName,
           piecesPerUnit: item.piecesPerUnit,
           cartonsInput: 1,
@@ -363,6 +423,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
     setIsSubmitting(true);
     try {
       await onSubmit(data);
+      clearDraft();
     } catch (err) {
       setFormError(
         err instanceof Error ? err.message : "Failed to create sale",
@@ -374,6 +435,26 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <div className="flex items-center gap-3 bg-amber-50 border-2 border-amber-300 rounded-xl px-4 py-3">
+          <span className="text-xl shrink-0">📋</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">You have an unsaved sale draft</p>
+            <p className="text-xs text-amber-700">Continue where you left off?</p>
+          </div>
+          <button type="button" onClick={restoreDraft}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shrink-0 transition-colors">
+            Restore
+          </button>
+          <button type="button" onClick={discardDraft}
+            className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 text-xs font-semibold rounded-lg shrink-0 transition-colors">
+            Discard
+          </button>
+        </div>
+      )}
+
       {/* Payment Type Toggle (CASH vs CREDIT) */}
       <div className={`grid gap-3 ${enableCreditSales ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {(["CASH", ...(enableCreditSales ? ["CREDIT"] : [])] as ("CASH" | "CREDIT")[]).map((type) => {
@@ -560,14 +641,15 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
             {filteredItems.map((item) => {
               const inCart = cart.find((c) => c.itemId === item.id);
               const outOfStock = item.quantity === 0;
+              const canAdd = !outOfStock || allowSaleOnZeroStock;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => !outOfStock && addToCart(item)}
-                  disabled={outOfStock}
+                  onClick={() => canAdd && addToCart(item)}
+                  disabled={!canAdd}
                   className={`w-full px-4 py-2.5 text-left border-b border-gray-100 last:border-0 flex items-center gap-3 ${
-                    outOfStock
+                    !canAdd
                       ? "opacity-50 cursor-not-allowed bg-gray-50"
                       : "hover:bg-blue-50 cursor-pointer"
                   }`}
@@ -588,13 +670,13 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
                       className={`text-xs ${outOfStock ? "text-red-500" : item.quantity <= 10 ? "text-amber-600" : "text-gray-500"}`}
                     >
                       {outOfStock
-                        ? "Out of stock"
+                        ? allowSaleOnZeroStock ? "⚠ Out of stock" : "Out of stock"
                         : useUnitSystem && item.unitName
                           ? `${item.quantity} ${item.unitName}`
                           : `${item.quantity} left`}
                     </p>
                   </div>
-                  {inCart && !outOfStock && (
+                  {inCart && canAdd && (
                     <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
                       {inCart.quantity}
                     </span>

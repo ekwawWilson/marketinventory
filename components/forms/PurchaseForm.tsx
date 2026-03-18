@@ -93,6 +93,56 @@ export function PurchaseForm({ onSubmit, onCancel }: PurchaseFormProps) {
   const { items } = useItems()
   const { suppliers } = useSuppliers()
 
+  // ── Draft persistence ─────────────────────────────────────────────────────
+  const draftKey = user?.tenantId ? `purchase_draft_${user.tenantId}` : null
+  const [hasDraft, setHasDraft] = useState(false)
+
+  useEffect(() => {
+    if (!draftKey) return
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (raw) setHasDraft(true)
+    } catch {}
+  }, [draftKey])
+
+  useEffect(() => {
+    if (!draftKey) return
+    if (cart.length === 0 && !selectedSupplier && !depositPaid) return
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        cart,
+        selectedSupplier,
+        purchaseType,
+        depositPaid,
+      }))
+    } catch {}
+  }, [draftKey, cart, selectedSupplier, purchaseType, depositPaid])
+
+  const restoreDraft = () => {
+    if (!draftKey) return
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.cart) setCart(d.cart)
+      if (d.selectedSupplier) setSelectedSupplier(d.selectedSupplier)
+      if (d.purchaseType) setPurchaseType(d.purchaseType)
+      if (d.depositPaid !== undefined) setDepositPaid(d.depositPaid)
+    } catch {}
+    setHasDraft(false)
+  }
+
+  const discardDraft = () => {
+    if (!draftKey) return
+    try { localStorage.removeItem(draftKey) } catch {}
+    setHasDraft(false)
+  }
+
+  const clearDraft = () => {
+    if (!draftKey) return
+    try { localStorage.removeItem(draftKey) } catch {}
+  }
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (itemSearchRef.current && !itemSearchRef.current.contains(e.target as Node)) setShowItemDropdown(false)
@@ -196,6 +246,7 @@ export function PurchaseForm({ onSubmit, onCancel }: PurchaseFormProps) {
     setIsSubmitting(true)
     try {
       await onSubmit(data)
+      clearDraft()
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to record purchase')
     } finally {
@@ -205,6 +256,25 @@ export function PurchaseForm({ onSubmit, onCancel }: PurchaseFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <div className="flex items-center gap-3 bg-amber-50 border-2 border-amber-300 rounded-xl px-4 py-3">
+          <span className="text-xl shrink-0">📋</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">You have an unsaved purchase draft</p>
+            <p className="text-xs text-amber-700">Continue where you left off?</p>
+          </div>
+          <button type="button" onClick={restoreDraft}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shrink-0 transition-colors">
+            Restore
+          </button>
+          <button type="button" onClick={discardDraft}
+            className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 text-xs font-semibold rounded-lg shrink-0 transition-colors">
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* Purchase Type Toggle */}
       <div className="grid grid-cols-2 gap-3">

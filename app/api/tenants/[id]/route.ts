@@ -144,6 +144,8 @@ export async function PUT(req: Request, { params }: RouteParams) {
         ...(body.enableCreditSales !== undefined && { enableCreditSales: Boolean(body.enableCreditSales) }),
         ...(body.enableExpenses !== undefined && { enableExpenses: Boolean(body.enableExpenses) }),
         ...(body.enableTill !== undefined && { enableTill: Boolean(body.enableTill) }),
+        // Sales behaviour
+        ...(body.allowSaleOnZeroStock !== undefined && { allowSaleOnZeroStock: Boolean(body.allowSaleOnZeroStock) }),
       },
     })
 

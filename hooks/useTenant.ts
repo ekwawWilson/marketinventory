@@ -41,6 +41,7 @@ export interface TenantFeatures {
   enableCreditSales: boolean
   enableExpenses: boolean
   enableTill: boolean
+  allowSaleOnZeroStock: boolean
 }
 
 const DEFAULT_FEATURES: TenantFeatures = {
@@ -58,6 +59,7 @@ const DEFAULT_FEATURES: TenantFeatures = {
   enableCreditSales: false,
   enableExpenses: false,
   enableTill: false,
+  allowSaleOnZeroStock: false,
 }
 
 /**
@@ -93,6 +95,7 @@ export function useTenantFeatures(): { features: TenantFeatures; isLoading: bool
           enableCreditSales: data.enableCreditSales ?? false,
           enableExpenses: data.enableExpenses ?? false,
           enableTill: data.enableTill ?? false,
+          allowSaleOnZeroStock: data.allowSaleOnZeroStock ?? false,
         })
       })
       .catch(() => {})

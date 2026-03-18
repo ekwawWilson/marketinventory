@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PETROS Business Management Mini — Product Flyer</title>
+    <style>
+      /* ── Reset & Base ─────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background: #f0f4f8;
+        color: #1a202c;
+        line-height: 1.6;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      /* ── Page wrapper ─────────────────────────────────────── */
+      .page {
+        max-width: 900px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+      }
+
+      /* ── Hero Header ──────────────────────────────────────── */
+      .hero {
+        background: linear-gradient(
+          135deg,
+          #1e40af 0%,
+          #3730a3 50%,
+          #4338ca 100%
+        );
+        color: #ffffff;
+        padding: 60px 48px 50px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 280px;
+        height: 280px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        bottom: -80px;
+        left: -40px;
+        width: 220px;
+        height: 220px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 50%;
+      }
+
+      .hero-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #bfdbfe;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 6px 18px;
+        border-radius: 50px;
+        margin-bottom: 24px;
+      }
+
+      .hero-logo {
+        font-size: 52px;
+        margin-bottom: 12px;
+        display: block;
+      }
+
+      .hero h1 {
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin-bottom: 8px;
+        line-height: 1.2;
+      }
+
+      .hero h1 span {
+        color: #93c5fd;
+      }
+
+      .hero-tagline {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.75);
+        font-weight: 400;
+        margin-bottom: 32px;
+      }
+
+      .hero-cta {
+        display: inline-block;
+        background: #ffffff;
+        color: #1e40af;
+        font-size: 15px;
+        font-weight: 800;
+        padding: 14px 36px;
+        border-radius: 50px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s;
+      }
+
+      .hero-cta:hover {
+        transform: translateY(-2px);
+      }
+
+      /* ── Section ──────────────────────────────────────────── */
+      .section {
+        padding: 52px 48px;
+      }
+
+      .section + .section {
+        border-top: 1px solid #e5e7eb;
+      }
+
+      .section-alt {
+        background: #f8faff;
+      }
+
+      .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: #6366f1;
+        margin-bottom: 8px;
+      }
+
+      .section-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 8px;
+        letter-spacing: -0.3px;
+      }
+
+      .section-subtitle {
+        font-size: 15px;
+        color: #6b7280;
+        margin-bottom: 36px;
+        max-width: 600px;
+      }
+
+      /* ── Problem Banner ───────────────────────────────────── */
+      .problem-banner {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        border-left: 5px solid #f59e0b;
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 0;
+      }
+
+      .problem-banner p {
+        font-size: 17px;
+        font-weight: 600;
+        color: #78350f;
+        line-height: 1.6;
+      }
+
+      .problem-banner p strong {
+        color: #92400e;
+      }
+
+      /* ── Feature Grid ─────────────────────────────────────── */
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+      }
+
+      .feature-card {
+        background: #ffffff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 24px 22px;
+        transition:
+          box-shadow 0.2s,
+          border-color 0.2s;
+      }
+
+      .feature-card:hover {
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
+        border-color: #a5b4fc;
+      }
+
+      .feature-icon {
+        font-size: 32px;
+        margin-bottom: 14px;
+        display: block;
+      }
+
+      .feature-card h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 8px;
+      }
+
+      .feature-card p {
+        font-size: 13px;
+        color: #6b7280;
+        line-height: 1.6;
+      }
+
+      .feature-card ul {
+        list-style: none;
+        margin-top: 10px;
+      }
+
+      .feature-card ul li {
+        font-size: 12.5px;
+        color: #4b5563;
+        padding: 3px 0;
+        padding-left: 16px;
+        position: relative;
+      }
+
+      .feature-card ul li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #10b981;
+        font-weight: 700;
+      }
+
+      /* ── Comparison Table ─────────────────────────────────── */
+      .compare-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1.5px solid #e5e7eb;
+        font-size: 13.5px;
+      }
+
+      .compare-table thead tr {
+        background: linear-gradient(135deg, #1e40af, #4338ca);
+        color: #ffffff;
+      }
+
+      .compare-table th {
+        padding: 14px 18px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.3px;
+      }
+
+      .compare-table th:first-child {
+        text-align: left;
+      }
+
+      .compare-table tbody tr:nth-child(even) {
+        background: #f8faff;
+      }
+      .compare-table tbody tr:nth-child(odd) {
+        background: #ffffff;
+      }
+
+      .compare-table td {
+        padding: 12px 18px;
+        text-align: center;
+        border-top: 1px solid #f0f0f0;
+        color: #374151;
+      }
+
+      .compare-table td:first-child {
+        text-align: left;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .compare-table .yes {
+        color: #059669;
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .compare-table .no {
+        color: #dc2626;
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .compare-table .warn {
+        color: #d97706;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      /* ── Roles Table ──────────────────────────────────────── */
+      .roles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 14px;
+      }
+
+      .role-card {
+        border-radius: 14px;
+        padding: 18px 20px;
+        border: 1.5px solid transparent;
+      }
+
+      .role-card.owner {
+        background: #f5f3ff;
+        border-color: #c4b5fd;
+      }
+      .role-card.manager {
+        background: #eff6ff;
+        border-color: #93c5fd;
+      }
+      .role-card.cashier {
+        background: #f0fdf4;
+        border-color: #86efac;
+      }
+      .role-card.inventory {
+        background: #fff7ed;
+        border-color: #fdba74;
+      }
+      .role-card.accountant {
+        background: #fef2f2;
+        border-color: #fca5a5;
+      }
+      .role-card.staff {
+        background: #f9fafb;
+        border-color: #d1d5db;
+      }
+
+      .role-name {
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .role-card.owner .role-name {
+        color: #6d28d9;
+      }
+      .role-card.manager .role-name {
+        color: #1d4ed8;
+      }
+      .role-card.cashier .role-name {
+        color: #15803d;
+      }
+      .role-card.inventory .role-name {
+        color: #c2410c;
+      }
+      .role-card.accountant .role-name {
+        color: #b91c1c;
+      }
+      .role-card.staff .role-name {
+        color: #374151;
+      }
+
+      .role-desc {
+        font-size: 12px;
+        color: #6b7280;
+        line-height: 1.5;
+      }
+
+      /* ── Testimonials ─────────────────────────────────────── */
+      .testimonial-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+      }
+
+      .testimonial {
+        background: #ffffff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 22px 20px;
+        position: relative;
+      }
+
+      .testimonial::before {
+        content: "\201C";
+        font-size: 64px;
+        color: #e0e7ff;
+        font-family: Georgia, serif;
+        position: absolute;
+        top: 8px;
+        left: 16px;
+        line-height: 1;
+      }
+
+      .testimonial p {
+        font-size: 13.5px;
+        color: #374151;
+        line-height: 1.7;
+        font-style: italic;
+        margin-top: 24px;
+      }
+
+      .testimonial-author {
+        margin-top: 14px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #6366f1;
+      }
+
+      /* ── Stats Bar ────────────────────────────────────────── */
+      .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: linear-gradient(135deg, #1e40af, #4338ca);
+        padding: 36px 48px;
+        text-align: center;
+        gap: 20px;
+      }
+
+      .stat-item {
+      }
+
+      .stat-number {
+        font-size: 36px;
+        font-weight: 900;
+        color: #ffffff;
+        display: block;
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.65);
+        margin-top: 6px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* ── Pricing Section ──────────────────────────────────── */
+      .pricing-card {
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        border: 2px solid #38bdf8;
+        border-radius: 18px;
+        padding: 36px 40px;
+        text-align: center;
+        max-width: 480px;
+        margin: 0 auto;
+      }
+
+      .pricing-badge {
+        display: inline-block;
+        background: #0ea5e9;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 16px;
+        border-radius: 50px;
+        margin-bottom: 16px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .pricing-card h3 {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0c4a6e;
+        margin-bottom: 6px;
+      }
+
+      .pricing-free {
+        font-size: 48px;
+        font-weight: 900;
+        color: #0369a1;
+        line-height: 1;
+        margin: 16px 0 4px;
+      }
+
+      .pricing-period {
+        font-size: 13px;
+        color: #0c4a6e;
+        margin-bottom: 20px;
+      }
+
+      .pricing-list {
+        list-style: none;
+        text-align: left;
+        margin: 20px 0 28px;
+      }
+
+      .pricing-list li {
+        font-size: 13.5px;
+        color: #0c4a6e;
+        padding: 6px 0;
+        padding-left: 22px;
+        position: relative;
+        font-weight: 500;
+      }
+
+      .pricing-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #0284c7;
+        font-weight: 800;
+      }
+
+      .pricing-btn {
+        display: block;
+        width: 100%;
+        background: linear-gradient(135deg, #0369a1, #0ea5e9);
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 800;
+        padding: 16px 24px;
+        border-radius: 14px;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(3, 105, 161, 0.3);
+      }
+
+      /* ── CTA Footer ───────────────────────────────────────── */
+      .cta-footer {
+        background: linear-gradient(135deg, #111827, #1e293b);
+        color: #ffffff;
+        padding: 52px 48px;
+        text-align: center;
+      }
+
+      .cta-footer h2 {
+        font-size: 30px;
+        font-weight: 800;
+        margin-bottom: 10px;
+        letter-spacing: -0.3px;
+      }
+
+      .cta-footer p {
+        font-size: 15px;
+        color: #9ca3af;
+        margin-bottom: 36px;
+      }
+
+      .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 40px;
+      }
+
+      .contact-item {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 18px 16px;
+      }
+
+      .contact-icon {
+        font-size: 24px;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .contact-label {
+        font-size: 11px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .contact-value {
+        font-size: 13.5px;
+        color: #e5e7eb;
+        font-weight: 600;
+      }
+
+      .final-cta {
+        display: inline-block;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 800;
+        padding: 16px 48px;
+        border-radius: 50px;
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+        margin-bottom: 32px;
+      }
+
+      .brand-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 24px;
+        font-size: 12px;
+        color: #4b5563;
+      }
+
+      .brand-footer strong {
+        color: #6b7280;
+      }
+
+      /* ── Print ────────────────────────────────────────────── */
+      @media print {
+        body {
+          background: #fff;
+        }
+        .page {
+          box-shadow: none;
+          margin: 0;
+          border-radius: 0;
+          max-width: 100%;
+        }
+        .feature-card:hover {
+          box-shadow: none;
+        }
+        @page {
+          margin: 15mm;
+        }
+      }
+
+      /* ── Responsive ───────────────────────────────────────── */
+      @media (max-width: 640px) {
+        .hero {
+          padding: 40px 24px 36px;
+        }
+        .hero h1 {
+          font-size: 26px;
+        }
+        .section {
+          padding: 36px 24px;
+        }
+        .stats-bar {
+          grid-template-columns: repeat(2, 1fr);
+          padding: 28px 24px;
+        }
+        .cta-footer {
+          padding: 40px 24px;
+        }
+        .stat-number {
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- ═══════════════════════════════════════════════ HERO -->
+      <div class="hero">
+        <span class="hero-badge">Cloud Business Software · EYO Solutions</span>
+        <span class="hero-logo">🏪</span>
+        <h1>PETROS Business<br /><span>Management Mini</span></h1>
+        <p class="hero-tagline">
+          The Complete Business Operating System Built for Modern African
+          Commerce
+        </p>
+        <a href="#" class="hero-cta">Start Your Free 30-Day Trial →</a>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ PROBLEM -->
+      <div class="section">
+        <div class="section-label">The Problem</div>
+        <div class="section-title" style="margin-bottom: 24px">
+          Are you still managing your business with notebooks and spreadsheets?
+        </div>
+        <div class="problem-banner">
+          <p>
+            Every day you operate without a proper system, you lose money you
+            don't even know you're losing —
+            <strong
+              >stolen stock, unpaid debts, missed payments, and decisions made
+              on guesswork.</strong
+            >
+            Your competitors who adopted smart business software are growing
+            while you're still counting by hand.
+            <br /><br />
+            <strong>There is a smarter way. And it starts here.</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ STATS BAR -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-number">9+</span>
+          <span class="stat-label">Core Modules</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">6</span>
+          <span class="stat-label">User Roles</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">∞</span>
+          <span class="stat-label">Products Tracked</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">24/7</span>
+          <span class="stat-label">Cloud Access</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ FEATURES -->
+      <div class="section section-alt">
+        <div class="section-label">What You Get</div>
+        <div class="section-title">
+          Everything your business needs.<br />One platform.
+        </div>
+        <p class="section-subtitle">
+          Built from the ground up for the way African businesses actually
+          operate — with mobile-first design and features that match your
+          reality.
+        </p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <span class="feature-icon">💰</span>
+            <h3>Sales & POS</h3>
+            <p>
+              Process sales in seconds. Track every payment. Know who owes you —
+              in real time.
+            </p>
+            <ul>
+              <li>Barcode scanning POS terminal</li>
+              <li>Cash, MoMo &amp; bank transfer</li>
+              <li>Credit sales management</li>
+              <li>Thermal receipt printing</li>
+              <li>Quotations → Sales conversion</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">🛒</span>
+            <h3>Purchasing</h3>
+            <p>
+              Stop over-ordering. Stop running out. Know your stock levels
+              before your customers do.
+            </p>
+            <ul>
+              <li>Purchase order management</li>
+              <li>Automatic stock updates</li>
+              <li>Supplier balance tracking</li>
+              <li>Purchase returns processing</li>
+              <li>Supplier credit management</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">📦</span>
+            <h3>Inventory Control</h3>
+            <p>Your stock is your money. Protect it like it is.</p>
+            <ul>
+              <li>Real-time stock tracking</li>
+              <li>Expiry date monitoring &amp; alerts</li>
+              <li>Bulk stock adjustments</li>
+              <li>Multi-unit support (piece/carton)</li>
+              <li>Multi-branch stock visibility</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">👥</span>
+            <h3>CRM</h3>
+            <p>
+              Build relationships that bring customers back — and suppliers who
+              prioritise you.
+            </p>
+            <ul>
+              <li>Full customer ledger</li>
+              <li>Debt tracking &amp; reminders</li>
+              <li>Supplier payment history</li>
+              <li>Customer returns processing</li>
+              <li>Balance adjustments</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">💳</span>
+            <h3>Finance</h3>
+            <p>Know your numbers before your accountant does.</p>
+            <ul>
+              <li>Daily revenue &amp; expense tracking</li>
+              <li>Till / cash register management</li>
+              <li>Expense categorisation</li>
+              <li>Outstanding debt reports</li>
+              <li>End-of-day summaries</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">📈</span>
+            <h3>Reports</h3>
+            <p>
+              Stop guessing. Start knowing. Data-driven decisions in seconds.
+            </p>
+            <ul>
+              <li>Sales performance reports</li>
+              <li>Inventory valuation</li>
+              <li>Creditor &amp; debtor aging</li>
+              <li>Purchase analysis</li>
+              <li>Profit &amp; loss visibility</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ ROLES -->
+      <div class="section">
+        <div class="section-label">Access Control</div>
+        <div class="section-title">Built for teams. Secured by role.</div>
+        <p class="section-subtitle">
+          Not everyone in your business needs to see everything. Every action is
+          logged. Every change is tracked.
+        </p>
+
+        <div class="roles-grid">
+          <div class="role-card owner">
+            <div class="role-name">👑 Owner</div>
+            <div class="role-desc">
+              Full access — every number, every setting, every report. Total
+              visibility.
+            </div>
+          </div>
+          <div class="role-card manager">
+            <div class="role-name">🏬 Store Manager</div>
+            <div class="role-desc">
+              Operations, sales, purchases, staff oversight. Runs the
+              day-to-day.
+            </div>
+          </div>
+          <div class="role-card cashier">
+            <div class="role-name">💵 Cashier</div>
+            <div class="role-desc">
+              Sales, POS terminal, and payment collection. Nothing more, nothing
+              less.
+            </div>
+          </div>
+          <div class="role-card inventory">
+            <div class="role-name">📦 Inventory Mgr</div>
+            <div class="role-desc">
+              Stock management, items, and purchase receiving. Keeps shelves
+              full.
+            </div>
+          </div>
+          <div class="role-card accountant">
+            <div class="role-name">🧾 Accountant</div>
+            <div class="role-desc">
+              Financial reports, balances, and payment data. Read access to what
+              matters.
+            </div>
+          </div>
+          <div class="role-card staff">
+            <div class="role-name">👤 Staff</div>
+            <div class="role-desc">
+              Day-to-day operations with appropriate access. Safe and
+              controlled.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ COMPARISON -->
+      <div class="section section-alt">
+        <div class="section-label">Competitive Advantage</div>
+        <div class="section-title">
+          Why businesses choose PETROS over everything else
+        </div>
+        <p class="section-subtitle">
+          An honest comparison with the alternatives you might be considering.
+        </p>
+
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th style="text-align: left">Feature</th>
+              <th>PETROS</th>
+              <th>Generic Software</th>
+              <th>Spreadsheets</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Works on any phone</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Limited</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Multi-branch support</td>
+              <td class="yes">✓</td>
+              <td class="warn">💰 Expensive add-on</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>MoMo payment tracking</td>
+              <td class="yes">✓</td>
+              <td class="no">✗</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Real-time stock updates</td>
+              <td class="yes">✓</td>
+              <td class="yes">✓</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Role-based access control</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Basic</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Thermal receipt printing</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Varies</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Credit sales tracking</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Limited</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Barcode POS terminal</td>
+              <td class="yes">✓</td>
+              <td class="warn">💰 Separate module</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Full audit trail</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Varies</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Expiry date tracking</td>
+              <td class="yes">✓</td>
+              <td class="warn">⚠ Rare</td>
+              <td class="no">✗</td>
+            </tr>
+            <tr>
+              <td>Affordable for SMEs</td>
+              <td class="yes">✓</td>
+              <td class="no">✗</td>
+              <td class="warn">⚠ Costs you more</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ TESTIMONIALS -->
+      <div class="section">
+        <div class="section-label">Customer Stories</div>
+        <div class="section-title">The numbers speak for themselves</div>
+        <p class="section-subtitle">
+          What our customers report after 90 days of use.
+        </p>
+
+        <div class="testimonial-grid">
+          <div class="testimonial">
+            <p>
+              "I discovered GHS 4,200 in stock discrepancies in the first week
+              alone. PETROS paid for itself before the trial even ended."
+            </p>
+            <div class="testimonial-author">— Retail Shop Owner, Accra</div>
+          </div>
+          <div class="testimonial">
+            <p>
+              "My customers stopped denying their debts. The system shows them
+              their exact balance with timestamps. No more arguments."
+            </p>
+            <div class="testimonial-author">
+              — Wholesale Distributor, Kumasi
+            </div>
+          </div>
+          <div class="testimonial">
+            <p>
+              "My cashier can't steal anymore. Every sale is logged and I get
+              daily reports on my phone wherever I am."
+            </p>
+            <div class="testimonial-author">— Supermarket Owner, Takoradi</div>
+          </div>
+          <div class="testimonial">
+            <p>
+              "We went from 3 staff manually checking stock to zero. The system
+              does it automatically and sends alerts when we're low."
+            </p>
+            <div class="testimonial-author">— Pharmacy Manager, Tamale</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ TRIAL / PRICING -->
+      <div class="section section-alt">
+        <div class="section-label">Get Started</div>
+        <div class="section-title" style="text-align: center">
+          Simple. Affordable. No surprises.
+        </div>
+        <p
+          class="section-subtitle"
+          style="margin: 0 auto 32px; text-align: center"
+        >
+          One plan. Every feature. Cancel anytime.
+        </p>
+
+        <div class="pricing-card">
+          <span class="pricing-badge">Limited Time Offer</span>
+          <h3>Free Trial — Full Access</h3>
+          <div class="pricing-free">FREE</div>
+          <div class="pricing-period">
+            for your first 30 days · No credit card required
+          </div>
+          <ul class="pricing-list">
+            <li>All 9+ modules unlocked from day one</li>
+            <li>Unlimited products and transactions</li>
+            <li>Up to 10 team members</li>
+            <li>Multi-branch support included</li>
+            <li>POS terminal with barcode scanning</li>
+            <li>Full reports and audit trail</li>
+            <li>Cloud backup — your data is always safe</li>
+            <li>Setup in under 10 minutes</li>
+          </ul>
+          <button class="pricing-btn">🚀 Start Free Trial Now</button>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ CTA FOOTER -->
+      <div class="cta-footer">
+        <h2>Ready to take control of your business?</h2>
+        <p>
+          Join hundreds of businesses already running smarter with PETROS.<br />Your
+          competitors aren't waiting — neither should you.
+        </p>
+
+        <div class="contact-grid">
+          <div class="contact-item">
+            <span class="contact-icon">🌐</span>
+            <div class="contact-label">Website</div>
+            <div class="contact-value">eyosolutions.com</div>
+          </div>
+          <div class="contact-item">
+            <span class="contact-icon">📱</span>
+            <div class="contact-label">Phone / WhatsApp</div>
+            <div class="contact-value">0246 462 398</div>
+          </div>
+          <div class="contact-item">
+            <span class="contact-icon">✉️</span>
+            <div class="contact-label">Email</div>
+            <div class="contact-value">ee.wilson@outlook.com</div>
+          </div>
+          <div class="contact-item">
+            <span class="contact-icon">📍</span>
+            <div class="contact-label">Availability</div>
+            <div class="contact-value">Ghana · Nigeria · West Africa</div>
+          </div>
+        </div>
+
+        <a href="#" class="final-cta">Start Your Free Trial Today →</a>
+
+        <div class="brand-footer">
+          <p>
+            <strong>PETROS Business Management Mini</strong> &nbsp;·&nbsp;
+            Developed by <strong>EYO Solutions</strong> &nbsp;·&nbsp; Cloud data
+            secured and encrypted &nbsp;·&nbsp; Available on any device
+          </p>
+          <p style="margin-top: 8px">
+            <em>"The business that knows its numbers grows its numbers."</em>
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- /.page -->
+  </body>
+</html>
