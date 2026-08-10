@@ -74,7 +74,20 @@ export async function GET(req: Request) {
       })
     }
 
-    return NextResponse.json({ success: true, status: result.status })
+    // Whether the callback already recorded the sale. The callback normally
+    // beats the till to an approved payment, and without this the till would
+    // record a second sale for the same money — double-counting the takings and
+    // decrementing stock twice.
+    const txn = await prisma.momoTransaction.findFirst({
+      where: { clientReference, tenantId: context!.tenantId },
+      select: { saleId: true },
+    })
+
+    return NextResponse.json({
+      success: true,
+      status: result.status,
+      saleId: txn?.saleId ?? null,
+    })
   } catch (err) {
     console.error('MoMo status error:', err)
     return NextResponse.json({ error: 'Failed to check MoMo status' }, { status: 500 })

@@ -763,7 +763,11 @@ export default function PosPage() {
 
   // Keyed by our own clientReference: Hubtel's status endpoint no longer
   // accepts their transaction id.
-  const pollMomoStatus = (clientRef: string, onSuccess: () => void, onFail: (msg?: string) => void) => {
+  const pollMomoStatus = (
+    clientRef: string,
+    onSuccess: (alreadyRecordedSaleId?: string | null) => void,
+    onFail: (msg?: string) => void,
+  ) => {
     stopMomoPoll() // never run two pollers at once
     let attempts = 0
     const max = MOMO_POLL_ATTEMPTS
@@ -779,7 +783,9 @@ export default function PosPage() {
           return
         }
         if (data.status === 'success') {
-          stopMomoPoll(); setMomoStatus('success'); onSuccess()
+          // saleId is set when Hubtel's callback beat us here and already
+          // recorded the sale — passed on so we do not record it twice.
+          stopMomoPoll(); setMomoStatus('success'); onSuccess(data.saleId ?? null)
         } else if (data.status === 'failed' || attempts >= max) {
           stopMomoPoll(); setMomoStatus('failed'); onFail()
         }
@@ -1037,7 +1043,8 @@ export default function PosPage() {
       // Poll and complete checkout on success
       pollMomoStatus(
         saleRef,
-        () => void completeCheckout(saleRef),
+        (alreadyRecordedSaleId) =>
+          void completeCheckout(saleRef, alreadyRecordedSaleId),
         (msg) =>
           setErrorMsg(
             msg ||
@@ -1050,7 +1057,10 @@ export default function PosPage() {
     await completeCheckout()
   }
 
-  const completeCheckout = async (momoReference?: string) => {
+  const completeCheckout = async (
+    momoReference?: string,
+    alreadyRecordedSaleId?: string | null,
+  ) => {
     // Synchronous guard — isSubmitting is state and can read stale across
     // batched updates, and the MoMo poll callback bypasses it entirely.
     if (submitLockRef.current) return
@@ -1059,6 +1069,24 @@ export default function PosPage() {
     setNoticeMsg('')
     setIsSubmitting(true)
     try {
+      // Hubtel's callback usually reaches us before the poll does, and it
+      // records the sale itself. Posting again would bank the same money twice
+      // and take the stock down twice, so fetch that sale and show it instead.
+      if (alreadyRecordedSaleId) {
+        const existing = await fetch(`/api/sales/${alreadyRecordedSaleId}`)
+        if (existing.ok) {
+          const sale = await existing.json()
+          finaliseSaleResult(sale, sale.paidAmount ?? grandTotal)
+          return
+        }
+        // Falling through would duplicate the sale, so stop and let the cashier
+        // find it rather than risk recording it twice.
+        setErrorMsg(
+          'Payment received and the sale was already recorded. Find it in Sales — do not charge again.',
+        )
+        return
+      }
+
       // Carries the payment reference so the sale is bound to it, which is what
       // tells the callback this sale already exists.
       const body = { ...buildSaleBody(), momoReference }
