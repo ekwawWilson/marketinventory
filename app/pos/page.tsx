@@ -786,8 +786,16 @@ export default function PosPage() {
           // saleId is set when Hubtel's callback beat us here and already
           // recorded the sale — passed on so we do not record it twice.
           stopMomoPoll(); setMomoStatus('success'); onSuccess(data.saleId ?? null)
-        } else if (data.status === 'failed' || attempts >= max) {
-          stopMomoPoll(); setMomoStatus('failed'); onFail()
+        } else if (data.status === 'failed') {
+          // A settled decline. Saying anything about a late approval here would
+          // be wrong — this payment is finished and will not arrive.
+          stopMomoPoll()
+          setMomoStatus('failed')
+          onFail('The customer declined the payment, or it failed on their network.')
+        } else if (attempts >= max) {
+          stopMomoPoll()
+          setMomoStatus('failed')
+          onFail()
         }
       } catch {
         // Network hiccup — keep polling until the attempt cap
