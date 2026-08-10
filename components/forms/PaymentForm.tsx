@@ -7,6 +7,7 @@ import { paymentSchema, PaymentFormData } from '@/types/form'
 import { formatCurrency } from '@/lib/utils/format'
 import { MomoPhoneModal } from '@/components/modals/MomoPhoneModal'
 import type { MomoChannel } from '@/lib/momo/hubtelVerify'
+import { MOMO_POLL_ATTEMPTS, MOMO_POLL_INTERVAL_MS, MOMO_POLL_TIMEOUT_MINUTES } from '@/lib/momo/polling'
 import { useTenantFeatures } from '@/hooks/useTenant'
 
 type PaymentMethod = 'CASH' | 'MOMO' | 'BANK'
@@ -138,7 +139,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
 
       setMomoStatus('pending')
 
-      // Poll for approval — every 5 s, up to 2 min
+      // Poll for approval until the shared cap (5 minutes).
       return await new Promise<boolean>((resolve) => {
         let attempts = 0
         const interval = setInterval(async () => {
@@ -157,16 +158,18 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
               setMomoStatus('failed')
               setMomoError('Customer declined or payment failed. Try again.')
               resolve(false)
-            } else if (attempts >= 24) {
+            } else if (attempts >= MOMO_POLL_ATTEMPTS) {
               clearInterval(interval)
               setMomoStatus('failed')
-              setMomoError('MoMo request timed out. Ask the customer to try again.')
+              setMomoError(
+                `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes. If the customer approves late the payment will still go through, so check before charging again.`
+              )
               resolve(false)
             }
           } catch {
             // network hiccup — keep polling
           }
-        }, 5000)
+        }, MOMO_POLL_INTERVAL_MS)
       })
     } catch {
       setMomoStatus('failed')

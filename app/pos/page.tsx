@@ -12,6 +12,7 @@ import { OperationalBranchPrompt } from '@/components/branch/OperationalBranchPr
 import { useCustomerDisplaySender } from '@/hooks/useCustomerDisplay'
 import { isLowStock } from '@/lib/items/stock'
 import { MomoPhoneModal } from '@/components/modals/MomoPhoneModal'
+import { MOMO_POLL_ATTEMPTS, MOMO_POLL_INTERVAL_MS, MOMO_POLL_TIMEOUT_MINUTES } from '@/lib/momo/polling'
 import { AmountEntryModal } from '@/components/modals/AmountEntryModal'
 import { PosReceipt } from '@/components/receipts/PosReceipt'
 import type { MomoChannel } from '@/lib/momo/hubtelVerify'
@@ -765,7 +766,7 @@ export default function PosPage() {
   const pollMomoStatus = (clientRef: string, onSuccess: () => void, onFail: (msg?: string) => void) => {
     stopMomoPoll() // never run two pollers at once
     let attempts = 0
-    const max = 24 // 2 minutes at 5s intervals
+    const max = MOMO_POLL_ATTEMPTS
     momoPollRef.current = setInterval(async () => {
       attempts++
       try {
@@ -786,7 +787,7 @@ export default function PosPage() {
         // Network hiccup — keep polling until the attempt cap
         if (attempts >= max) { stopMomoPoll(); setMomoStatus('failed'); onFail() }
       }
-    }, 5000)
+    }, MOMO_POLL_INTERVAL_MS)
   }
 
   // ── Holds ───────────────────────────────────────────────────────────────────
@@ -1037,7 +1038,11 @@ export default function PosPage() {
       pollMomoStatus(
         saleRef,
         () => void completeCheckout(saleRef),
-        (msg) => setErrorMsg(msg || 'MoMo payment was declined or timed out. Please try again.'),
+        (msg) =>
+          setErrorMsg(
+            msg ||
+              `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes. If the customer approves late the payment still goes through, so check before charging again.`,
+          ),
       )
       return
     }

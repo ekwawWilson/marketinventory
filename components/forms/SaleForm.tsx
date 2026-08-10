@@ -7,6 +7,7 @@ import { useUser } from "@/hooks/useUser";
 import { useRolePermissions, useTenantFeatures } from "@/hooks/useTenant";
 import { MomoPhoneModal } from "@/components/modals/MomoPhoneModal";
 import type { MomoChannel } from "@/lib/momo/hubtelVerify";
+import { MOMO_POLL_ATTEMPTS, MOMO_POLL_INTERVAL_MS, MOMO_POLL_TIMEOUT_MINUTES } from '@/lib/momo/polling';
 import { isLowStock } from "@/lib/items/stock";
 import { formatCurrency } from "@/lib/utils/format";
 import { isInventoryItemType, itemTypeLabel, normalizeItemType } from "@/lib/items/type";
@@ -536,7 +537,8 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
 
       setMomoStatus("pending");
 
-      // Every 5s for 2 minutes — long enough for the customer to find their PIN.
+      // Polls until the shared cap (5 minutes) — long enough for the customer
+      // to find their phone and their PIN.
       return await new Promise<boolean>((resolve) => {
         let attempts = 0;
         const interval = setInterval(async () => {
@@ -555,16 +557,18 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
               setMomoStatus("failed");
               setMomoError("The customer declined, or the payment failed.");
               resolve(false);
-            } else if (attempts >= 24) {
+            } else if (attempts >= MOMO_POLL_ATTEMPTS) {
               clearInterval(interval);
               setMomoStatus("failed");
-              setMomoError("The request timed out. Ask the customer to try again.");
+              setMomoError(
+                `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes. If the customer approves late the payment will still go through, so check before charging again.`,
+              );
               resolve(false);
             }
           } catch {
             // A network hiccup mid-poll is not a decline — keep waiting.
           }
-        }, 5000);
+        }, MOMO_POLL_INTERVAL_MS);
       });
     } catch {
       setMomoStatus("failed");
