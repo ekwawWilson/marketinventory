@@ -242,6 +242,11 @@ export default function PosPage() {
   const [momoStatus, setMomoStatus] = useState<'idle' | 'sending' | 'pending' | 'success' | 'failed'>('idle')
   const [momoPhoneModalOpen, setMomoPhoneModalOpen] = useState(false)
   const momoPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Kept after the poll gives up so the cashier can ask again on the same
+  // reference. A late approval is still a real payment, and the alternative is
+  // asking them to remember it and check the Sales list by hand.
+  const [momoUnresolvedRef, setMomoUnresolvedRef] = useState<string | null>(null)
+  const [isRecheckingMomo, setIsRecheckingMomo] = useState(false)
   // Synchronous submit lock — state batching makes isSubmitting unreliable for this
   const submitLockRef = useRef(false)
   const [showAmountModal, setShowAmountModal] = useState(false)
@@ -623,6 +628,9 @@ export default function PosPage() {
     resetLineEditing()
     setMomoPaid(''); setCashPaid(''); setSplitMode(false)
     setMomoTxId(null); setMomoStatus('idle'); setMomoPhone('')
+    // Cleared with the cart: an unresolved payment belongs to the customer who
+    // was standing there, and must not follow the next one.
+    setMomoUnresolvedRef(null)
     // Order-level state must reset too, or a held discount leaks onto the next customer
     setOrderDiscountValue(''); setOrderDiscountMode('pct')
     setGlobalTier('sellingPrice'); setMethod('CASH'); setTendered('')
@@ -795,13 +803,70 @@ export default function PosPage() {
         } else if (attempts >= max) {
           stopMomoPoll()
           setMomoStatus('failed')
+          // Unanswered, not declined. The prompt is still live on Hubtel's side,
+          // so keep the reference and let the cashier ask again.
+          setMomoUnresolvedRef(clientRef)
           onFail()
         }
       } catch {
         // Network hiccup — keep polling until the attempt cap
-        if (attempts >= max) { stopMomoPoll(); setMomoStatus('failed'); onFail() }
+        if (attempts >= max) {
+          stopMomoPoll()
+          setMomoStatus('failed')
+          setMomoUnresolvedRef(clientRef)
+          onFail()
+        }
       }
     }, MOMO_POLL_INTERVAL_MS)
+  }
+
+  /**
+   * Ask once more about a payment the till stopped waiting for.
+   *
+   * A prompt that went unanswered is not cancelled — the customer can still
+   * approve it minutes later. Without this the cashier is left holding a live
+   * payment they have been told nothing about, and their only options are to
+   * charge again (taking the money twice) or hunt through the Sales list.
+   */
+  const recheckMomoPayment = async () => {
+    if (!momoUnresolvedRef || isRecheckingMomo) return
+    setIsRecheckingMomo(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch(
+        `/api/momo/status?clientReference=${encodeURIComponent(momoUnresolvedRef)}`,
+      )
+      const data = await res.json()
+
+      if (!res.ok || data.success === false) {
+        setErrorMsg(data.error || 'Could not reach Hubtel. Try again in a moment.')
+        return
+      }
+
+      if (data.status === 'success') {
+        setMomoStatus('success')
+        const ref = momoUnresolvedRef
+        setMomoUnresolvedRef(null)
+        // saleId means the callback already recorded it; completeCheckout shows
+        // that sale rather than creating a second one.
+        await completeCheckout(ref, data.saleId ?? null)
+        return
+      }
+
+      if (data.status === 'failed') {
+        setMomoUnresolvedRef(null)
+        setErrorMsg('The customer declined the payment. You can charge again or take cash.')
+        return
+      }
+
+      setErrorMsg(
+        'Still waiting on the customer. Ask them to check their phone for the prompt.',
+      )
+    } catch {
+      setErrorMsg('Could not check the payment. Check the connection and try again.')
+    } finally {
+      setIsRecheckingMomo(false)
+    }
   }
 
   // ── Holds ───────────────────────────────────────────────────────────────────
@@ -1055,8 +1120,7 @@ export default function PosPage() {
           void completeCheckout(saleRef, alreadyRecordedSaleId),
         (msg) =>
           setErrorMsg(
-            msg ||
-              `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes. If the customer approves late the payment still goes through, so check before charging again.`,
+            msg || `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes.`,
           ),
       )
       return
@@ -1793,6 +1857,38 @@ export default function PosPage() {
           placeholder="Sale note (optional)"
           className="w-full px-2.5 py-1.5 border border-gray-200 text-xs focus:border-indigo-400 focus:outline-none" />
         {errorMsg  && <p className="text-xs text-red-600 bg-red-50 px-2 py-1">{errorMsg}</p>}
+
+        {/* A payment the till stopped waiting for is still live on Hubtel's
+            side. Checking again is one tap, and it is what stops a cashier
+            charging twice for money that has already arrived. */}
+        {momoUnresolvedRef && (
+          <div className="border-2 border-amber-300 bg-amber-50 px-2 py-2 space-y-1.5">
+            <p className="text-xs text-amber-900 font-semibold">
+              This payment is still open
+            </p>
+            <p className="text-[11px] text-amber-800 leading-snug">
+              The customer may still approve it. Check before charging again.
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => void recheckMomoPayment()}
+                disabled={isRecheckingMomo}
+                className="flex-1 py-2 bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isRecheckingMomo ? 'Checking…' : 'Check payment'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMomoUnresolvedRef(null); setErrorMsg('') }}
+                disabled={isRecheckingMomo}
+                className="px-3 py-2 border-2 border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 disabled:opacity-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {noticeMsg && <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1">{noticeMsg}</p>}
       </div>
 
