@@ -771,7 +771,9 @@ export default function PosPage() {
       try {
         const res = await fetch(`/api/momo/status?clientReference=${encodeURIComponent(clientRef)}`)
         const data = await res.json()
-        if (!res.ok) {
+        // The status route reports upstream trouble as success:false with a
+        // 200, so a bare res.ok check would never see it.
+        if (!res.ok || data.success === false) {
           stopMomoPoll(); setMomoStatus('failed'); onFail(data.error)
           return
         }
