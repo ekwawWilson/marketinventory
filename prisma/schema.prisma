@@ -356,6 +356,18 @@ model Branch {
   createdAt DateTime @default(now())
 
   users User[]
+
+  // Foreign keys, so a branch cannot be deleted out from under its records and
+  // a bad branchId cannot be stored. onDelete: Restrict is deliberate — the
+  // delete handler already refuses when records exist and explains what is in
+  // the way; this is the guarantee behind that check, not a silent cascade
+  // that would destroy a branch's history.
+  items           Item[]
+  sales           Sale[]
+  purchases       Purchase[]
+  expenses        Expense[]
+  stockAdjustments StockAdjustment[]
+  momoTransactions MomoTransaction[]
 }
 
 // =====================
@@ -395,6 +407,7 @@ model Item {
   id             String       @id @default(uuid())
   tenantId       String
   branchId       String?
+  branch         Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   manufacturerId String
   manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id])
   categoryId     String?
@@ -432,6 +445,8 @@ model Item {
   customerReturns  CustomerReturn[]
   supplierReturns  SupplierReturn[]
   stockAdjustments StockAdjustment[]
+
+  @@index([tenantId, branchId])
 }
 
 // =====================
@@ -474,6 +489,7 @@ model Sale {
   id            String           @id @default(uuid())
   tenantId      String
   branchId      String? // optional: which branch this sale was made at
+  branch        Branch?          @relation(fields: [branchId], references: [id], onDelete: Restrict)
   customerId    String?
   customer      Customer?        @relation(fields: [customerId], references: [id])
   subtotalAmount Float           @default(0)
@@ -502,6 +518,9 @@ model Sale {
   createdBy        User?           @relation("SaleCreatedBy", fields: [createdById], references: [id])
 
   @@index([tenantId, approvalStatus])
+  // Every branch view filters on this; without it each one scans the tenant's
+  // whole sales history.
+  @@index([tenantId, branchId])
 }
 
 model SaleItem {
@@ -528,6 +547,7 @@ model Purchase {
   id          String           @id @default(uuid())
   tenantId    String
   branchId    String? // optional: which branch received this purchase
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   supplierId  String
   supplier    Supplier         @relation(fields: [supplierId], references: [id])
   totalAmount Float
@@ -539,6 +559,8 @@ model Purchase {
   createdAt   DateTime         @default(now())
   items       PurchaseItem[]
   returns     SupplierReturn[]
+
+  @@index([tenantId, branchId])
 }
 
 model PurchaseItem {
@@ -630,6 +652,7 @@ model StockAdjustment {
   id               String              @id @default(uuid())
   tenantId         String
   branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   itemId           String
   userId           String?
   type             StockAdjustmentType
@@ -712,6 +735,7 @@ model Expense {
   id          String          @id @default(uuid())
   tenantId    String
   branchId    String? // optional: which branch incurred this expense
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   amount      Float
   category    ExpenseCategory
   description String
@@ -720,6 +744,8 @@ model Expense {
   method      PaymentMethod   @default(CASH)
   paidBy      String?
   createdAt   DateTime        @default(now())
+
+  @@index([tenantId, branchId])
 }
 
 // =====================
@@ -1791,6 +1817,7 @@ model MomoTransaction {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branchId String?
+  branch   Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   /// Our own reference, sent to Hubtel as ClientReference and used to match the
   /// callback. Unique so a retry cannot create a second charge for one sale.

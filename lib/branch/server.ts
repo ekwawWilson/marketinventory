@@ -162,6 +162,21 @@ export function applyBranchScope<T extends Record<string, unknown>>(
     return where as T & { branchId?: string | null }
   }
 
+  // The filter is active but no branch is resolved. Passing currentBranchId
+  // straight through would emit `branchId: null`, which is not a denial — it
+  // matches every record that has no branch, so an orphaned row would leak into
+  // a view the caller should not see. Match nothing instead.
+  //
+  // Reaching here means the context is inconsistent (branches on, filter
+  // active, no branch), so it is logged rather than passing quietly.
+  if (!context.currentBranchId) {
+    console.error(
+      '[branch-scope] Branch filter active with no current branch; denying. ' +
+        `tenant=${context.tenantId} user=${context.user?.id ?? 'unknown'}`
+    )
+    return { ...where, branchId: '__no_branch__' }
+  }
+
   return {
     ...where,
     branchId: context.currentBranchId,
