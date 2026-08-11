@@ -200,7 +200,11 @@ export async function POST(req: Request) {
         select: { id: true, role: true, tenantId: true },
       })
 
-      if (!user || !txn.branchId) {
+      // branchId is legitimately null when the tenant does not use branches —
+      // requiring it here meant single-branch businesses got no recovery at
+      // all, which is most of them. The branchesEnabled check below is what
+      // decides whether the sale is scoped to a branch.
+      if (!user) {
         console.error('[momo-callback] Cannot rebuild the sale context for', reference)
         return NextResponse.json({ received: true })
       }
@@ -234,6 +238,16 @@ export async function POST(req: Request) {
         canViewAllBranches: false,
         isBranchLocked: true,
         allBranchesSelected: false,
+      }
+
+      // With branches on, a sale must belong to one — recording it against no
+      // branch would put stock and takings somewhere nobody can see them.
+      if (features.enableBranches && !txn.branchId) {
+        console.error(
+          '[momo-callback] Payment has no branch and branches are enabled; sale needs recording by hand:',
+          reference
+        )
+        return NextResponse.json({ received: true })
       }
 
       const result = await createSaleFromInput({

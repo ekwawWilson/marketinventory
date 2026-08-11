@@ -52,22 +52,46 @@ export async function POST(req: Request) {
       )
     }
 
+    // The reference comes from the browser as POS-<timestamp>, so it is neither
+    // unique across tenants nor trustworthy. Namespacing it by tenant makes a
+    // collision between two businesses impossible, and stops a crafted request
+    // from naming another tenant's reference to interfere with their payment.
+    const reference = `${context!.tenantId.slice(0, 8)}-${String(clientReference)}`
+
+    // Hubtel caps ClientReference at 36 characters and rejects anything longer.
+    if (reference.length > 36) {
+      return NextResponse.json({
+        success: false,
+        error: 'Payment reference is too long. Try again.',
+      })
+    }
+
     // Recorded before the prompt goes out, not after. If the till loses power
     // or closes its tab while the customer is entering their PIN, this row and
     // Hubtel's callback are the only things that can still turn an approved
     // payment into a sale.
-    await prisma.momoTransaction.create({
-      data: {
-        tenantId: context!.tenantId,
-        branchId: context!.currentBranchId ?? null,
-        clientReference: String(clientReference),
-        phoneNumber: String(phoneNumber),
-        channel,
-        amount: parseFloat(String(amount)),
-        salePayload: salePayload ? JSON.stringify(salePayload) : null,
-        createdById: context!.user.id,
-      },
-    })
+    try {
+      await prisma.momoTransaction.create({
+        data: {
+          tenantId: context!.tenantId,
+          branchId: context!.currentBranchId ?? null,
+          clientReference: reference,
+          phoneNumber: String(phoneNumber),
+          channel,
+          amount: parseFloat(String(amount)),
+          salePayload: salePayload ? JSON.stringify(salePayload) : null,
+          createdById: context!.user.id,
+        },
+      })
+    } catch {
+      // The unique index rejected it: this reference has been charged already.
+      // Sending the prompt anyway would ask the customer to pay a second time.
+      return NextResponse.json({
+        success: false,
+        error:
+          'This payment has already been sent. Check the customer’s phone before charging again.',
+      })
+    }
 
     const result = await sendMomoCollect(
       {
@@ -82,7 +106,7 @@ export async function POST(req: Request) {
         channel,
         customerName: customerName ? String(customerName) : undefined,
         description: description || `Payment to ${tenant.name}`,
-        clientReference: String(clientReference),
+        clientReference: reference,
       }
     )
 
@@ -95,7 +119,7 @@ export async function POST(req: Request) {
       // The prompt never reached the customer, so this reference is dead.
       // Closing it keeps a refused attempt from sitting in the pending list.
       await prisma.momoTransaction.updateMany({
-        where: { clientReference: String(clientReference), status: 'PENDING' },
+        where: { clientReference: reference, tenantId: context!.tenantId, status: 'PENDING' },
         data: { status: 'FAILED', failureReason: result.error, completedAt: new Date() },
       })
       // 200, deliberately. A 5xx here is indistinguishable in the browser from
@@ -107,7 +131,7 @@ export async function POST(req: Request) {
     }
 
     await prisma.momoTransaction.updateMany({
-      where: { clientReference: String(clientReference), status: 'PENDING' },
+      where: { clientReference: reference, tenantId: context!.tenantId, status: 'PENDING' },
       data: {
         transactionId: result.transactionId ?? null,
         // 0000 means Hubtel settled it outright — no callback is coming, so

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireBranchAccess } from '@/lib/branch/server'
+import { applyBranchScope, requireBranchAccess } from '@/lib/branch/server'
 import { prisma } from '@/lib/db/prisma'
 import { getMomoStatus } from '@/lib/momo/hubtelCollect'
 
@@ -18,12 +18,22 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     // transactionId is still accepted so a till running older JS keeps working
     // through a deploy.
-    const clientReference =
+    const rawReference =
       searchParams.get('clientReference') ?? searchParams.get('transactionId')
 
-    if (!clientReference) {
+    if (!rawReference) {
       return NextResponse.json({ error: 'clientReference is required' }, { status: 400 })
     }
+
+    // The collect route namespaces the browser's reference by tenant before
+    // sending it to Hubtel, so the same prefix has to be applied here or the
+    // lookup misses and every payment polls as pending until it times out.
+    // Tolerates a reference that already carries the prefix, so a till that
+    // kept one across a deploy still resolves.
+    const prefix = `${context!.tenantId.slice(0, 8)}-`
+    const clientReference = rawReference.startsWith(prefix)
+      ? rawReference
+      : `${prefix}${rawReference}`
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: context!.tenantId },
@@ -59,11 +69,10 @@ export async function GET(req: Request) {
     // and a PENDING row is what the recovery list works from.
     if (result.status === 'success' || result.status === 'failed') {
       await prisma.momoTransaction.updateMany({
-        where: {
-          clientReference,
-          tenantId: context!.tenantId,
-          status: 'PENDING',
-        },
+        where: applyBranchScope(
+          { clientReference, tenantId: context!.tenantId, status: 'PENDING' as const },
+          context!
+        ),
         data: {
           status: result.status === 'success' ? 'SUCCESS' : 'FAILED',
           completedAt: new Date(),
@@ -79,7 +88,7 @@ export async function GET(req: Request) {
     // record a second sale for the same money — double-counting the takings and
     // decrementing stock twice.
     const txn = await prisma.momoTransaction.findFirst({
-      where: { clientReference, tenantId: context!.tenantId },
+      where: applyBranchScope({ clientReference, tenantId: context!.tenantId }, context!),
       select: { saleId: true },
     })
 

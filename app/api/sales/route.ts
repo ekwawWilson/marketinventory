@@ -202,10 +202,18 @@ export async function POST(req: Request) {
     // till got here first, so it does not record the same sale a second time.
     // Best-effort: the sale is already committed, and failing to link it must
     // not fail the checkout.
-    const momoReference = typeof body.momoReference === 'string' ? body.momoReference : null
-    if (momoReference && result.sale?.id) {
+    const rawMomoReference = typeof body.momoReference === 'string' ? body.momoReference : null
+    if (rawMomoReference && result.sale?.id) {
+      // Namespaced by tenant in the collect route, so the browser's bare
+      // reference has to be prefixed to match. Binding nothing here would leave
+      // the callback thinking the till never recorded the sale, and it would
+      // record a second one.
+      const prefix = `${context!.tenantId.slice(0, 8)}-`
+      const momoReference = rawMomoReference.startsWith(prefix)
+        ? rawMomoReference
+        : `${prefix}${rawMomoReference}`
       try {
-        await prisma.momoTransaction.updateMany({
+        const linked = await prisma.momoTransaction.updateMany({
           where: {
             clientReference: momoReference,
             tenantId: context!.tenantId,
@@ -213,6 +221,14 @@ export async function POST(req: Request) {
           },
           data: { saleId: result.sale.id },
         })
+        if (linked.count === 0) {
+          // Either the callback bound it first, or the reference is wrong. The
+          // former is fine; the latter means a payment nobody can reconcile.
+          console.warn('[sales] MoMo payment not linked to sale:', {
+            momoReference,
+            saleId: result.sale.id,
+          })
+        }
       } catch (linkErr) {
         console.error('Failed to link sale to MoMo payment:', linkErr)
       }
