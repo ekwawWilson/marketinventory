@@ -303,20 +303,26 @@ export async function getMomoStatus(
     const entry = Array.isArray(container) ? container[0] : container
     const raw = (entry?.Status ?? entry?.status ?? '').toLowerCase()
 
-    const status: MomoStatusResult['status'] =
-      raw === 'paid' || raw === 'success' || raw === 'successful'
-        ? 'success'
-        : // "Unpaid" is NOT a decline. Hubtel returns it for a prompt the
-          // customer has not answered yet, and it only becomes "Paid" after
-          // they approve. Treating it as terminal — as this did — failed every
-          // payment on the first poll, five seconds in, so the customer was
-          // approving into a transaction already marked FAILED.
-          //
-          // A real decline arrives as the callback (ResponseCode 2001) or as
-          // one of these, so nothing is lost by waiting out the poll.
-          raw === 'failed' || raw === 'refunded' || raw === 'cancelled' || raw === 'expired'
-          ? 'failed'
-          : 'pending'
+    // Whitelist both ends and let everything else stay pending — the pattern the
+    // hirepurchase deployment uses against this same API, and the safer shape.
+    //
+    // The previous version blacklisted failures and included "unpaid", read as
+    // Hubtel's decline. It is not: Unpaid is what the status endpoint returns
+    // while the customer has yet to answer, becoming Paid on approval. Every
+    // payment therefore died on the first poll five seconds in, and the customer
+    // approved into a transaction already marked FAILED.
+    //
+    // Being wrong in this direction only costs a wait: a real decline still
+    // arrives as the callback (ResponseCode 2001) or as one of the terminal
+    // words below. Being wrong the other way loses the sale outright.
+    const SETTLED = ['paid', 'success', 'successful', 'completed']
+    const REJECTED = ['failed', 'fail', 'rejected', 'declined', 'cancelled', 'expired', 'refunded']
+
+    const status: MomoStatusResult['status'] = SETTLED.includes(raw)
+      ? 'success'
+      : REJECTED.includes(raw)
+        ? 'failed'
+        : 'pending'
 
     return { success: true, status }
   } catch (err) {

@@ -77,22 +77,40 @@ export async function POST(req: Request) {
     const trusted = ip === HUBTEL_CALLBACK_IP
 
     const body = await req.json().catch(() => null)
-    const data = (body ?? {}) as {
-      ResponseCode?: string
-      Message?: string
-      Data?: {
-        ClientReference?: string
-        TransactionId?: string
-        ExternalTransactionId?: string
-        Amount?: number
-        AmountCharged?: number
-        PaymentDate?: string
-        CustomerMsisdn?: string
-      }
+    const raw = (body ?? {}) as Record<string, unknown>
+
+    // Hubtel is not consistent about casing across its APIs, and the same
+    // deployment has seen both. Reading only PascalCase meant a camelCase
+    // callback found no ClientReference and silently did nothing — the payment
+    // taken, the sale never recorded. The hirepurchase integration normalises
+    // both on every field; this does the same.
+    const rawData = ((raw.Data ?? raw.data) ?? {}) as Record<string, unknown>
+    const pick = <T,>(a: string, b: string): T | undefined =>
+      (rawData[a] ?? rawData[b]) as T | undefined
+
+    const data = {
+      ResponseCode: String(raw.ResponseCode ?? raw.responseCode ?? '').trim(),
+      Message: String(raw.Message ?? raw.message ?? ''),
+      Data: {
+        ClientReference: pick<string>('ClientReference', 'clientReference'),
+        TransactionId: pick<string>('TransactionId', 'transactionId'),
+        ExternalTransactionId: pick<string>('ExternalTransactionId', 'externalTransactionId'),
+        Amount: pick<number>('Amount', 'amount'),
+        AmountCharged: pick<number>('AmountCharged', 'amountCharged'),
+        PaymentDate: pick<string>('PaymentDate', 'paymentDate'),
+        CustomerMsisdn: pick<string>('CustomerMsisdn', 'customerMsisdn'),
+        Status: pick<string>('Status', 'status'),
+      },
     }
 
-    const reference = data.Data?.ClientReference
-    const succeeded = data.ResponseCode === '0000'
+    const reference = data.Data.ClientReference
+
+    // Both signals, as the hirepurchase integration does: the response code is
+    // authoritative, but a callback carrying only a status word still resolves.
+    const statusWord = String(data.Data.Status ?? '').toLowerCase()
+    const succeeded =
+      data.ResponseCode === '0000' ||
+      ['success', 'successful', 'paid', 'completed'].includes(statusWord)
 
     console.log('[momo-callback]', {
       trusted,
@@ -146,6 +164,23 @@ export async function POST(req: Request) {
     }
 
     if (!succeeded) {
+      // Only a recognised failure closes the payment. Anything else — an
+      // unfamiliar code, a callback carrying neither signal — leaves it pending
+      // for the poll to settle, because marking a live payment FAILED on a
+      // payload we did not understand loses a sale the customer has paid for.
+      const failed =
+        data.ResponseCode === '2001' ||
+        ['failed', 'fail', 'rejected', 'declined', 'cancelled', 'expired'].includes(statusWord)
+
+      if (!failed) {
+        console.warn('[momo-callback] Unrecognised outcome, leaving pending:', {
+          reference,
+          responseCode: data.ResponseCode,
+          status: statusWord,
+        })
+        return NextResponse.json({ received: true })
+      }
+
       await prisma.momoTransaction.updateMany({
         where: { id: txn.id, status: 'PENDING' },
         data: {
