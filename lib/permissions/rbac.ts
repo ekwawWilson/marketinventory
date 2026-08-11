@@ -548,6 +548,20 @@ export const COMPANY_ADMIN_ROLES = [
   Role.STORE_MANAGER,
 ] as const
 
+/**
+ * Roles that may look across branches and switch between them.
+ *
+ * Only the owner. Everyone else — branch managers included — sees their own
+ * branch and cannot change it: a branch manager's figures should be their
+ * branch's figures, and a cashier must never ring up another branch's stock.
+ *
+ * Deliberately narrower than COMPANY_ADMIN_ROLES, which still governs
+ * company-wide *administration* (settings, users, roles). Being able to
+ * configure the company is not the same as being able to read every branch's
+ * takings.
+ */
+export const CROSS_BRANCH_ROLES = [Role.OWNER] as const
+
 export const BRANCH_MANAGER_MANAGED_ROLES = [
   Role.CASHIER,
   Role.INVENTORY_MANAGER,
@@ -555,7 +569,7 @@ export const BRANCH_MANAGER_MANAGED_ROLES = [
 ] as const
 
 export function canViewAllBranchesForRole(role: Role) {
-  return COMPANY_ADMIN_ROLES.includes(role as typeof COMPANY_ADMIN_ROLES[number])
+  return CROSS_BRANCH_ROLES.includes(role as typeof CROSS_BRANCH_ROLES[number])
 }
 
 export function canManageUsersForRole(role: Role) {

@@ -96,6 +96,9 @@ export async function requireBranchAccess(): Promise<{
     }
   }
 
+  // Computed after currentBranchId below would read better, but the branch
+  // resolution needs the full list first. Filtered again at the return for the
+  // unassigned case, where currentBranchId comes from the default fallback.
   const visibleBranches =
     assignedBranchId && !canViewAllBranches
       ? allBranches.filter((branch) => branch.id === assignedBranchId)
@@ -134,12 +137,18 @@ export async function requireBranchAccess(): Promise<{
       rolePermissions: base.rolePermissions as RolePermissionsMap | null,
       features,
       branchesEnabled,
-      branches: visibleBranches,
+      branches: canViewAllBranches
+        ? visibleBranches
+        : visibleBranches.filter((branch) => branch.id === currentBranchId),
       currentBranchId,
       currentBranch,
       assignedBranchId,
       canViewAllBranches,
-      isBranchLocked: Boolean(assignedBranchId && !canViewAllBranches),
+      // Anyone who cannot view all branches is locked to the one branch they
+      // are on, whether that came from their assignment or the default
+      // fallback. Keying this on assignedBranchId alone left an unassigned
+      // cashier able to switch branches from the top bar.
+      isBranchLocked: !canViewAllBranches,
       allBranchesSelected: branchesEnabled && canViewAllBranches && currentBranchId === null,
     },
   }
