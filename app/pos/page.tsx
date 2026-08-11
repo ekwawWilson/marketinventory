@@ -752,6 +752,7 @@ export default function PosPage() {
         // Sent so the callback can still record this sale if the till never
         // comes back — a closed tab or a power cut must not leave a charged
         // customer with no sale.
+        intent: 'SALE',
         salePayload: buildSaleBody(),
       }),
     })

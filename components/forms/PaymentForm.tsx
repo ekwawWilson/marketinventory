@@ -112,7 +112,14 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
   }
 
   // Send Hubtel MoMo collect request and poll for approval
-  const runMomoCollect = async (amountToCharge: number, phone: string, ref: string): Promise<boolean> => {
+  const runMomoCollect = async (
+    amountToCharge: number,
+    phone: string,
+    ref: string,
+    /** Sent so the callback can record this payment if the browser never
+     *  returns — otherwise the customer is charged and still owes the money. */
+    recovery?: { customerId: string; amount: number; momoPhone: string },
+  ): Promise<boolean> => {
     setMomoStatus('sending')
     setMomoError('')
     try {
@@ -125,6 +132,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
           channel: momoChannel,
           description: `Payment of GHS ${amountToCharge.toFixed(2)}`,
           clientReference: ref,
+          ...(recovery ? { intent: 'CUSTOMER_PAYMENT', salePayload: recovery } : {}),
         }),
       })
       const data = await res.json().catch(() => null)
@@ -196,7 +204,16 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
         setFormError('Enter the customer MoMo phone number first')
         return
       }
-      const approved = await runMomoCollect(amount, momoPhone.trim(), ref)
+      const approved = await runMomoCollect(
+        amount,
+        momoPhone.trim(),
+        ref,
+        // Customer payments only: recovery replays a balance reduction, which
+        // has no meaning for a payment going out to a supplier.
+        type === 'customer' && selectedEntity
+          ? { customerId: selectedEntity.id, amount, momoPhone: momoPhone.trim() }
+          : undefined,
+      )
       if (!approved) return
     }
 

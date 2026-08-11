@@ -177,16 +177,68 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true })
     }
 
-    // Payment is recorded either way. The sale is a separate step, and only
-    // possible when the till sent us its cart — a payment taken outside the POS
-    // (a customer paying down a balance) has no sale to create.
-    if (!txn.salePayload) {
+    // Payment is recorded either way. Recording what it was *for* is a separate
+    // step, and only possible when the caller sent us the request to replay.
+    if (!txn.salePayload || !txn.intent) {
       return NextResponse.json({ received: true })
     }
 
-    // Normally the till records the sale itself. Reaching here means it did not
-    // come back — the tab was closed, or the device lost power.
+    // Normally the browser records it. Reaching here means it did not come
+    // back — the tab was closed, or the device lost power.
     if (txn.saleId) {
+      return NextResponse.json({ received: true })
+    }
+
+    // A customer settling their balance. Without this the payment was taken,
+    // marked SUCCESS, and never written against the customer — leaving them
+    // owing money they had already paid.
+    if (txn.intent === 'CUSTOMER_PAYMENT') {
+      try {
+        const payload = JSON.parse(txn.salePayload) as {
+          customerId?: string
+          amount?: number
+          momoPhone?: string
+        }
+        if (!payload.customerId || !payload.amount) {
+          console.error('[momo-callback] Customer payment payload incomplete:', reference)
+          return NextResponse.json({ received: true })
+        }
+
+        await prisma.$transaction(async (tx) => {
+          const payment = await tx.customerPayment.create({
+            data: {
+              tenantId: txn.tenantId,
+              ...(txn.branchId ? { branchId: txn.branchId } : {}),
+              customerId: payload.customerId!,
+              amount: payload.amount!,
+              method: 'MOMO',
+              momoPhone: payload.momoPhone ?? txn.phoneNumber,
+            },
+          })
+
+          // Mirrors the guard in /api/payments/customers: never drive a balance
+          // negative, even if something else settled in the meantime.
+          await tx.customer.updateMany({
+            where: {
+              id: payload.customerId!,
+              tenantId: txn.tenantId,
+              balance: { gte: payload.amount! },
+            },
+            data: { balance: { decrement: payload.amount! } },
+          })
+
+          // Reuses saleId as "the record this payment produced", so the guard
+          // above stops a retried callback writing it twice.
+          await tx.momoTransaction.update({
+            where: { id: txn.id },
+            data: { saleId: payment.id },
+          })
+        })
+
+        console.log('[momo-callback] Recovered a customer payment:', reference)
+      } catch (err) {
+        console.error('[momo-callback] Payment took but recording failed for', reference, err)
+      }
       return NextResponse.json({ received: true })
     }
 

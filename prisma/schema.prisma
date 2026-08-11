@@ -1833,9 +1833,14 @@ model MomoTransaction {
   amountCharged Float?                // what the customer actually paid, incl. charges
   failureReason String?
 
-  /// The sale to create once payment is confirmed, as JSON. Held here rather
-  /// than only in the browser so a callback can complete a sale the till never
-  /// came back for.
+  /// What to record once payment is confirmed: SALE for a POS sale,
+  /// CUSTOMER_PAYMENT for a customer settling a balance. Null when the caller
+  /// sent no payload and will record the outcome itself.
+  intent   MomoIntent?
+
+  /// The request body to replay once payment is confirmed, as JSON. Held here
+  /// rather than only in the browser so a callback can finish what the till
+  /// never came back for.
   salePayload String?
 
   /// Set once the sale exists, whether the till or the callback created it.
@@ -1851,6 +1856,11 @@ model MomoTransaction {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+}
+
+enum MomoIntent {
+  SALE
+  CUSTOMER_PAYMENT
 }
 
 enum MomoTransactionStatus {

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     if (error) return error
 
     const body = await req.json()
-    const { amount, phoneNumber, description, clientReference, channel, customerName, salePayload } =
+    const { amount, phoneNumber, description, clientReference, channel, customerName, salePayload, intent } =
       body
 
     if (!amount || !phoneNumber || !clientReference) {
@@ -80,6 +80,14 @@ export async function POST(req: Request) {
           channel,
           amount: parseFloat(String(amount)),
           salePayload: salePayload ? JSON.stringify(salePayload) : null,
+          // Only a payload we know how to replay is worth storing an intent
+          // for; anything else would be replayed blindly by the callback.
+          intent:
+            salePayload && (intent === 'SALE' || intent === 'CUSTOMER_PAYMENT')
+              ? intent
+              : salePayload
+                ? 'SALE'
+                : null,
           createdById: context!.user.id,
         },
       })
