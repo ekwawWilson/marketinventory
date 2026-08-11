@@ -147,6 +147,11 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
 
       setMomoStatus('pending')
 
+      // The server generates the reference now, so poll with the one it
+      // returned — the ref we sent is not what the row is keyed by. Falls back
+      // for a browser still running older JS through a deploy.
+      const pollRef: string = data.clientReference ?? ref
+
       // Poll for approval until the shared cap (5 minutes).
       return await new Promise<boolean>((resolve) => {
         let attempts = 0
@@ -155,7 +160,7 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
           try {
             // Keyed by our own reference: Hubtel's status endpoint no longer
             // accepts their transaction id.
-            const sr = await fetch(`/api/momo/status?clientReference=${encodeURIComponent(ref)}`)
+            const sr = await fetch(`/api/momo/status?clientReference=${encodeURIComponent(pollRef)}`)
             const sd = await sr.json()
             if (sd.status === 'success') {
               clearInterval(interval)

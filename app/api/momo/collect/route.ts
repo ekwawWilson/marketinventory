@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { requireBranchAccess } from '@/lib/branch/server'
 import { prisma } from '@/lib/db/prisma'
 import { sendMomoCollect } from '@/lib/momo/hubtelCollect'
@@ -52,19 +53,21 @@ export async function POST(req: Request) {
       )
     }
 
-    // The reference comes from the browser as POS-<timestamp>, so it is neither
-    // unique across tenants nor trustworthy. Namespacing it by tenant makes a
-    // collision between two businesses impossible, and stops a crafted request
-    // from naming another tenant's reference to interfere with their payment.
-    const reference = `${context!.tenantId.slice(0, 8)}-${String(clientReference)}`
-
-    // Hubtel caps ClientReference at 36 characters and rejects anything longer.
-    if (reference.length > 36) {
-      return NextResponse.json({
-        success: false,
-        error: 'Payment reference is too long. Try again.',
-      })
-    }
+    // Generated here, not taken from the browser.
+    //
+    // Every till built its own reference from Date.now(), so two cashiers
+    // reaching checkout in the same millisecond — different tills, different
+    // branches, same tenant — produced the same string. The unique index caught
+    // it, but the loser could not charge their customer at all and was told the
+    // payment had "already been sent". Random bytes make that collision
+    // vanishingly unlikely, and a server-side value cannot be forged to point
+    // at someone else's payment.
+    //
+    // Hubtel caps ClientReference at 36 characters: 8 tenant + 1 dash + 13
+    // timestamp + 1 dash + 12 random = 35.
+    const reference =
+      `${context!.tenantId.slice(0, 8)}-${Date.now()}-` +
+      randomBytes(6).toString('hex')
 
     // Recorded before the prompt goes out, not after. If the till loses power
     // or closes its tab while the customer is entering their PIN, this row and
@@ -154,6 +157,9 @@ export async function POST(req: Request) {
       success: true,
       transactionId: result.transactionId,
       status: result.status,
+      // The caller polls and binds its sale with this: it is generated here, so
+      // the browser cannot know it otherwise.
+      clientReference: reference,
     })
   } catch (err) {
     console.error('MoMo collect error:', err)

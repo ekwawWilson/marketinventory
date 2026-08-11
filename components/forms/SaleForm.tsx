@@ -537,6 +537,11 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
 
       setMomoStatus("pending");
 
+      // The server generates the reference now, so poll with the one it
+      // returned — the ref we sent is not what the row is keyed by. Falls back
+      // for a browser still running older JS through a deploy.
+      const pollRef: string = data.clientReference ?? ref
+
       // Polls until the shared cap (5 minutes) — long enough for the customer
       // to find their phone and their PIN.
       return await new Promise<boolean>((resolve) => {
@@ -545,7 +550,7 @@ export function SaleForm({ onSubmit, onCancel }: SaleFormProps) {
           attempts++;
           try {
             const sr = await fetch(
-              `/api/momo/status?clientReference=${encodeURIComponent(ref)}`,
+              `/api/momo/status?clientReference=${encodeURIComponent(pollRef)}`,
             );
             const sd = await sr.json();
             if (sd.status === "success") {

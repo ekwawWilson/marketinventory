@@ -766,10 +766,10 @@ export default function PosPage() {
     }
     setMomoTxId(data.transactionId ?? null)
     setMomoStatus('pending')
-    // Returns whether the prompt was sent, not the transaction id: polling is
-    // keyed by our own clientReference, and Hubtel omits the id when a payment
-    // settles instantly — gating on it would fail a sale that had succeeded.
-    return true
+    // The server generates the reference, so it comes back on the response —
+    // polling and sale-binding both key on it. Falls back to the ref we sent
+    // for a till still running older JS through a deploy.
+    return (data.clientReference as string | undefined) ?? ref
   }
 
   // Poller lives in a ref so it can be cancelled from anywhere (method switch,
@@ -1121,13 +1121,13 @@ export default function PosPage() {
         return
       }
       const saleRef = `POS-${Date.now()}`
-      const sent = await sendMomoRequest(momoAmount, momoPhone.trim(), saleRef)
-      if (!sent) return // error already set by sendMomoRequest
+      const serverRef = await sendMomoRequest(momoAmount, momoPhone.trim(), saleRef)
+      if (!serverRef) return // error already set by sendMomoRequest
       // Poll and complete checkout on success
       pollMomoStatus(
-        saleRef,
+        serverRef,
         (alreadyRecordedSaleId) =>
-          void completeCheckout(saleRef, alreadyRecordedSaleId),
+          void completeCheckout(serverRef, alreadyRecordedSaleId),
         (msg) =>
           setErrorMsg(
             msg || `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes.`,
