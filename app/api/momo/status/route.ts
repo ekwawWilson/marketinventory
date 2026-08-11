@@ -77,7 +77,7 @@ export async function GET(req: Request) {
           status: result.status === 'success' ? 'SUCCESS' : 'FAILED',
           completedAt: new Date(),
           ...(result.status === 'failed'
-            ? { failureReason: 'Reported as unpaid by Hubtel' }
+            ? { failureReason: 'Hubtel reported the payment as failed or cancelled' }
             : {}),
         },
       })

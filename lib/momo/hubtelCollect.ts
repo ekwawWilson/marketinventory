@@ -306,13 +306,15 @@ export async function getMomoStatus(
     const status: MomoStatusResult['status'] =
       raw === 'paid' || raw === 'success' || raw === 'successful'
         ? 'success'
-        : // "Unpaid" is Hubtel's documented terminal decline, and "Refunded"
-          // means the money went back — neither should keep the till waiting.
-          raw === 'failed' ||
-            raw === 'unpaid' ||
-            raw === 'refunded' ||
-            raw === 'cancelled' ||
-            raw === 'expired'
+        : // "Unpaid" is NOT a decline. Hubtel returns it for a prompt the
+          // customer has not answered yet, and it only becomes "Paid" after
+          // they approve. Treating it as terminal — as this did — failed every
+          // payment on the first poll, five seconds in, so the customer was
+          // approving into a transaction already marked FAILED.
+          //
+          // A real decline arrives as the callback (ResponseCode 2001) or as
+          // one of these, so nothing is lost by waiting out the poll.
+          raw === 'failed' || raw === 'refunded' || raw === 'cancelled' || raw === 'expired'
           ? 'failed'
           : 'pending'
 
