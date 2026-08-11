@@ -328,8 +328,17 @@ export default function PosPage() {
   const sessionMenuRef = useRef<HTMLDivElement>(null)
   const isAutoSelectingAssignedBranch =
     !isBranchLoading && branchesEnabled && !currentBranchId && Boolean(assignedBranchId)
+  // "All branches" — currentBranchId null — is a reporting view, not a place
+  // you can sell from: there is no single stock to draw down, and the item list
+  // mixes every branch's products together.
+  //
+  // assignedBranchId is not a substitute. It only says which branch this user
+  // belongs to; the effect below selects it, and until that lands the server
+  // still scopes queries by the *selected* branch. Treating it as good enough
+  // let a branch user reach the till in all-branches mode and see other
+  // branches' stock.
   const requiresOperationalBranch =
-    !isBranchLoading && branchesEnabled && !currentBranchId && !assignedBranchId
+    !isBranchLoading && branchesEnabled && !currentBranchId && !isAutoSelectingAssignedBranch
 
   useEffect(() => {
     if (isAutoSelectingAssignedBranch && assignedBranchId) {
