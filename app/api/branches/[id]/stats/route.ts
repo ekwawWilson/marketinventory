@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { requirePermission } from '@/lib/permissions/rbac'
-import { requireBranchAccess } from '@/lib/branch/server'
+import { canAccessBranch, requireBranchAccess } from '@/lib/branch/server'
 import { approvedSaleWhere } from '@/lib/approvals/sales'
 import { isLowStock } from '@/lib/items/stock'
 
@@ -31,6 +31,17 @@ export async function GET(
     })
     if (!branch) {
       return NextResponse.json({ error: 'Branch not found' }, { status: 404 })
+    }
+
+    // Belonging to the tenant is not enough: this returns another branch's
+    // sales, revenue, expenses and stock. Without this a branch manager could
+    // read any branch's figures by asking for its id directly, which is exactly
+    // what the branch lock in the UI is there to prevent.
+    if (context!.branchesEnabled && !canAccessBranch(context!, id)) {
+      return NextResponse.json(
+        { error: 'You do not have access to this branch' },
+        { status: 403 }
+      )
     }
 
     // Build date filter

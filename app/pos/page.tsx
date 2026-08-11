@@ -12,8 +12,10 @@ import { OperationalBranchPrompt } from '@/components/branch/OperationalBranchPr
 import { useCustomerDisplaySender } from '@/hooks/useCustomerDisplay'
 import { isLowStock } from '@/lib/items/stock'
 import { MomoPhoneModal } from '@/components/modals/MomoPhoneModal'
+import { MOMO_POLL_ATTEMPTS, MOMO_POLL_INTERVAL_MS, MOMO_POLL_TIMEOUT_MINUTES } from '@/lib/momo/polling'
 import { AmountEntryModal } from '@/components/modals/AmountEntryModal'
 import { PosReceipt } from '@/components/receipts/PosReceipt'
+import type { MomoChannel } from '@/lib/momo/hubtelVerify'
 import { smartPrint, getReceiptBehaviour } from '@/lib/print/print'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -229,6 +231,9 @@ export default function PosPage() {
   // Payment
   const [method, setMethod] = useState<PaymentMethod>('CASH')
   const [momoPhone, setMomoPhone] = useState('')
+  // Hubtel requires the network with every payment request; it cannot be
+  // inferred from the number because a ported line keeps its old prefix.
+  const [momoChannel, setMomoChannel] = useState<MomoChannel>('mtn-gh')
   const [tendered, setTendered] = useState('')        // cash tendered
   const [momoPaid, setMomoPaid] = useState('')        // momo amount in split
   const [cashPaid, setCashPaid] = useState('')        // cash amount in split
@@ -237,6 +242,11 @@ export default function PosPage() {
   const [momoStatus, setMomoStatus] = useState<'idle' | 'sending' | 'pending' | 'success' | 'failed'>('idle')
   const [momoPhoneModalOpen, setMomoPhoneModalOpen] = useState(false)
   const momoPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Kept after the poll gives up so the cashier can ask again on the same
+  // reference. A late approval is still a real payment, and the alternative is
+  // asking them to remember it and check the Sales list by hand.
+  const [momoUnresolvedRef, setMomoUnresolvedRef] = useState<string | null>(null)
+  const [isRecheckingMomo, setIsRecheckingMomo] = useState(false)
   // Synchronous submit lock — state batching makes isSubmitting unreliable for this
   const submitLockRef = useRef(false)
   const [showAmountModal, setShowAmountModal] = useState(false)
@@ -318,8 +328,17 @@ export default function PosPage() {
   const sessionMenuRef = useRef<HTMLDivElement>(null)
   const isAutoSelectingAssignedBranch =
     !isBranchLoading && branchesEnabled && !currentBranchId && Boolean(assignedBranchId)
+  // "All branches" — currentBranchId null — is a reporting view, not a place
+  // you can sell from: there is no single stock to draw down, and the item list
+  // mixes every branch's products together.
+  //
+  // assignedBranchId is not a substitute. It only says which branch this user
+  // belongs to; the effect below selects it, and until that lands the server
+  // still scopes queries by the *selected* branch. Treating it as good enough
+  // let a branch user reach the till in all-branches mode and see other
+  // branches' stock.
   const requiresOperationalBranch =
-    !isBranchLoading && branchesEnabled && !currentBranchId && !assignedBranchId
+    !isBranchLoading && branchesEnabled && !currentBranchId && !isAutoSelectingAssignedBranch
 
   useEffect(() => {
     if (isAutoSelectingAssignedBranch && assignedBranchId) {
@@ -618,6 +637,9 @@ export default function PosPage() {
     resetLineEditing()
     setMomoPaid(''); setCashPaid(''); setSplitMode(false)
     setMomoTxId(null); setMomoStatus('idle'); setMomoPhone('')
+    // Cleared with the cart: an unresolved payment belongs to the customer who
+    // was standing there, and must not follow the next one.
+    setMomoUnresolvedRef(null)
     // Order-level state must reset too, or a held discount leaks onto the next customer
     setOrderDiscountValue(''); setOrderDiscountMode('pct')
     setGlobalTier('sellingPrice'); setMethod('CASH'); setTendered('')
@@ -724,19 +746,30 @@ export default function PosPage() {
       body: JSON.stringify({
         amount: amountToCharge,
         phoneNumber: phone,
+        channel: momoChannel,
         description: `Payment of GHS ${amountToCharge.toFixed(2)}`,
         clientReference: ref,
+        // Sent so the callback can still record this sale if the till never
+        // comes back — a closed tab or a power cut must not leave a charged
+        // customer with no sale.
+        intent: 'SALE',
+        salePayload: buildSaleBody(),
       }),
     })
-    const data = await res.json()
-    if (!res.ok || !data.transactionId) {
+    const data = await res.json().catch(() => null)
+    // The route reports refusals as success:false with a 200, so Hubtel's own
+    // message survives any proxy that would rewrite a 5xx body.
+    if (!data || data.success === false || (!res.ok && !data.error)) {
       setMomoStatus('failed')
-      setErrorMsg(data.error || 'Failed to send MoMo request')
+      setErrorMsg(data?.error || 'Failed to send MoMo request')
       return null
     }
-    setMomoTxId(data.transactionId)
+    setMomoTxId(data.transactionId ?? null)
     setMomoStatus('pending')
-    return data.transactionId as string
+    // The server generates the reference, so it comes back on the response —
+    // polling and sale-binding both key on it. Falls back to the ref we sent
+    // for a till still running older JS through a deploy.
+    return (data.clientReference as string | undefined) ?? ref
   }
 
   // Poller lives in a ref so it can be cancelled from anywhere (method switch,
@@ -746,29 +779,104 @@ export default function PosPage() {
     if (momoPollRef.current) { clearInterval(momoPollRef.current); momoPollRef.current = null }
   }
 
-  const pollMomoStatus = (txId: string, onSuccess: () => void, onFail: (msg?: string) => void) => {
+  // Keyed by our own clientReference: Hubtel's status endpoint no longer
+  // accepts their transaction id.
+  const pollMomoStatus = (
+    clientRef: string,
+    onSuccess: (alreadyRecordedSaleId?: string | null) => void,
+    onFail: (msg?: string) => void,
+  ) => {
     stopMomoPoll() // never run two pollers at once
     let attempts = 0
-    const max = 24 // 2 minutes at 5s intervals
+    const max = MOMO_POLL_ATTEMPTS
     momoPollRef.current = setInterval(async () => {
       attempts++
       try {
-        const res = await fetch(`/api/momo/status?transactionId=${encodeURIComponent(txId)}`)
+        const res = await fetch(`/api/momo/status?clientReference=${encodeURIComponent(clientRef)}`)
         const data = await res.json()
-        if (!res.ok) {
+        // The status route reports upstream trouble as success:false with a
+        // 200, so a bare res.ok check would never see it.
+        if (!res.ok || data.success === false) {
           stopMomoPoll(); setMomoStatus('failed'); onFail(data.error)
           return
         }
         if (data.status === 'success') {
-          stopMomoPoll(); setMomoStatus('success'); onSuccess()
-        } else if (data.status === 'failed' || attempts >= max) {
-          stopMomoPoll(); setMomoStatus('failed'); onFail()
+          // saleId is set when Hubtel's callback beat us here and already
+          // recorded the sale — passed on so we do not record it twice.
+          stopMomoPoll(); setMomoStatus('success'); onSuccess(data.saleId ?? null)
+        } else if (data.status === 'failed') {
+          // A settled decline. Saying anything about a late approval here would
+          // be wrong — this payment is finished and will not arrive.
+          stopMomoPoll()
+          setMomoStatus('failed')
+          onFail('The customer declined the payment, or it failed on their network.')
+        } else if (attempts >= max) {
+          stopMomoPoll()
+          setMomoStatus('failed')
+          // Unanswered, not declined. The prompt is still live on Hubtel's side,
+          // so keep the reference and let the cashier ask again.
+          setMomoUnresolvedRef(clientRef)
+          onFail()
         }
       } catch {
         // Network hiccup — keep polling until the attempt cap
-        if (attempts >= max) { stopMomoPoll(); setMomoStatus('failed'); onFail() }
+        if (attempts >= max) {
+          stopMomoPoll()
+          setMomoStatus('failed')
+          setMomoUnresolvedRef(clientRef)
+          onFail()
+        }
       }
-    }, 5000)
+    }, MOMO_POLL_INTERVAL_MS)
+  }
+
+  /**
+   * Ask once more about a payment the till stopped waiting for.
+   *
+   * A prompt that went unanswered is not cancelled — the customer can still
+   * approve it minutes later. Without this the cashier is left holding a live
+   * payment they have been told nothing about, and their only options are to
+   * charge again (taking the money twice) or hunt through the Sales list.
+   */
+  const recheckMomoPayment = async () => {
+    if (!momoUnresolvedRef || isRecheckingMomo) return
+    setIsRecheckingMomo(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch(
+        `/api/momo/status?clientReference=${encodeURIComponent(momoUnresolvedRef)}`,
+      )
+      const data = await res.json()
+
+      if (!res.ok || data.success === false) {
+        setErrorMsg(data.error || 'Could not reach Hubtel. Try again in a moment.')
+        return
+      }
+
+      if (data.status === 'success') {
+        setMomoStatus('success')
+        const ref = momoUnresolvedRef
+        setMomoUnresolvedRef(null)
+        // saleId means the callback already recorded it; completeCheckout shows
+        // that sale rather than creating a second one.
+        await completeCheckout(ref, data.saleId ?? null)
+        return
+      }
+
+      if (data.status === 'failed') {
+        setMomoUnresolvedRef(null)
+        setErrorMsg('The customer declined the payment. You can charge again or take cash.')
+        return
+      }
+
+      setErrorMsg(
+        'Still waiting on the customer. Ask them to check their phone for the prompt.',
+      )
+    } catch {
+      setErrorMsg('Could not check the payment. Check the connection and try again.')
+    } finally {
+      setIsRecheckingMomo(false)
+    }
   }
 
   // ── Holds ───────────────────────────────────────────────────────────────────
@@ -1013,13 +1121,17 @@ export default function PosPage() {
         return
       }
       const saleRef = `POS-${Date.now()}`
-      const txId = await sendMomoRequest(momoAmount, momoPhone.trim(), saleRef)
-      if (!txId) return // error already set by sendMomoRequest
+      const serverRef = await sendMomoRequest(momoAmount, momoPhone.trim(), saleRef)
+      if (!serverRef) return // error already set by sendMomoRequest
       // Poll and complete checkout on success
       pollMomoStatus(
-        txId,
-        () => void completeCheckout(),
-        (msg) => setErrorMsg(msg || 'MoMo payment was declined or timed out. Please try again.'),
+        serverRef,
+        (alreadyRecordedSaleId) =>
+          void completeCheckout(serverRef, alreadyRecordedSaleId),
+        (msg) =>
+          setErrorMsg(
+            msg || `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes.`,
+          ),
       )
       return
     }
@@ -1027,7 +1139,10 @@ export default function PosPage() {
     await completeCheckout()
   }
 
-  const completeCheckout = async () => {
+  const completeCheckout = async (
+    momoReference?: string,
+    alreadyRecordedSaleId?: string | null,
+  ) => {
     // Synchronous guard — isSubmitting is state and can read stale across
     // batched updates, and the MoMo poll callback bypasses it entirely.
     if (submitLockRef.current) return
@@ -1036,7 +1151,27 @@ export default function PosPage() {
     setNoticeMsg('')
     setIsSubmitting(true)
     try {
-      const body = buildSaleBody()
+      // Hubtel's callback usually reaches us before the poll does, and it
+      // records the sale itself. Posting again would bank the same money twice
+      // and take the stock down twice, so fetch that sale and show it instead.
+      if (alreadyRecordedSaleId) {
+        const existing = await fetch(`/api/sales/${alreadyRecordedSaleId}`)
+        if (existing.ok) {
+          const sale = await existing.json()
+          finaliseSaleResult(sale, sale.paidAmount ?? grandTotal)
+          return
+        }
+        // Falling through would duplicate the sale, so stop and let the cashier
+        // find it rather than risk recording it twice.
+        setErrorMsg(
+          'Payment received and the sale was already recorded. Find it in Sales — do not charge again.',
+        )
+        return
+      }
+
+      // Carries the payment reference so the sale is bound to it, which is what
+      // tells the callback this sale already exists.
+      const body = { ...buildSaleBody(), momoReference }
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1732,6 +1867,38 @@ export default function PosPage() {
           placeholder="Sale note (optional)"
           className="w-full px-2.5 py-1.5 border border-gray-200 text-xs focus:border-indigo-400 focus:outline-none" />
         {errorMsg  && <p className="text-xs text-red-600 bg-red-50 px-2 py-1">{errorMsg}</p>}
+
+        {/* A payment the till stopped waiting for is still live on Hubtel's
+            side. Checking again is one tap, and it is what stops a cashier
+            charging twice for money that has already arrived. */}
+        {momoUnresolvedRef && (
+          <div className="border-2 border-amber-300 bg-amber-50 px-2 py-2 space-y-1.5">
+            <p className="text-xs text-amber-900 font-semibold">
+              This payment is still open
+            </p>
+            <p className="text-[11px] text-amber-800 leading-snug">
+              The customer may still approve it. Check before charging again.
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => void recheckMomoPayment()}
+                disabled={isRecheckingMomo}
+                className="flex-1 py-2 bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isRecheckingMomo ? 'Checking…' : 'Check payment'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMomoUnresolvedRef(null); setErrorMsg('') }}
+                disabled={isRecheckingMomo}
+                className="px-3 py-2 border-2 border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 disabled:opacity-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {noticeMsg && <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1">{noticeMsg}</p>}
       </div>
 
@@ -2451,8 +2618,16 @@ export default function PosPage() {
 
       <MomoPhoneModal
         open={momoPhoneModalOpen}
+        // With the gateway off the number is typed for the record only — no
+        // prompt is sent, so there is nothing to verify against.
+        skipVerification={!features.enableMomoCollect}
         initialValue={momoPhone}
-        onAccept={(phone) => { setMomoPhone(phone); setMomoStatus('idle'); setMomoTxId(null) }}
+        onAccept={(phone, channel) => {
+          setMomoPhone(phone)
+          setMomoChannel(channel)
+          setMomoStatus('idle')
+          setMomoTxId(null)
+        }}
         onClose={() => setMomoPhoneModalOpen(false)}
       />
 

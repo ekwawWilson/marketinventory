@@ -51,6 +51,15 @@ export async function POST(req: Request) {
     const { authorized, error: permError } = requirePermission(context!, 'manage_settings')
     if (!authorized) return permError!
 
+    // Opening a branch is company administration, and manage_settings is held
+    // by roles that are otherwise confined to one branch.
+    if (!context!.canViewAllBranches) {
+      return NextResponse.json(
+        { error: 'Only the business owner can create branches' },
+        { status: 403 }
+      )
+    }
+
     const body = await req.json()
 
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {

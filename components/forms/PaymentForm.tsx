@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { paymentSchema, PaymentFormData } from '@/types/form'
 import { formatCurrency } from '@/lib/utils/format'
 import { MomoPhoneModal } from '@/components/modals/MomoPhoneModal'
+import type { MomoChannel } from '@/lib/momo/hubtelVerify'
+import { MOMO_POLL_ATTEMPTS, MOMO_POLL_INTERVAL_MS, MOMO_POLL_TIMEOUT_MINUTES } from '@/lib/momo/polling'
 import { useTenantFeatures } from '@/hooks/useTenant'
 
 type PaymentMethod = 'CASH' | 'MOMO' | 'BANK'
@@ -32,6 +34,8 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
   const [method, setMethod] = useState<PaymentMethod>('CASH')
   const [splitMode, setSplitMode] = useState(false)
   const [momoPhone, setMomoPhone] = useState('')
+  // Required by Hubtel on every payment request.
+  const [momoChannel, setMomoChannel] = useState<MomoChannel>('mtn-gh')
   const [splitMomoAmount, setSplitMomoAmount] = useState('')
   const [splitCashAmount, setSplitCashAmount] = useState('')
 
@@ -108,7 +112,14 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
   }
 
   // Send Hubtel MoMo collect request and poll for approval
-  const runMomoCollect = async (amountToCharge: number, phone: string, ref: string): Promise<boolean> => {
+  const runMomoCollect = async (
+    amountToCharge: number,
+    phone: string,
+    ref: string,
+    /** Sent so the callback can record this payment if the browser never
+     *  returns — otherwise the customer is charged and still owes the money. */
+    recovery?: { customerId: string; amount: number; momoPhone: string },
+  ): Promise<boolean> => {
     setMomoStatus('sending')
     setMomoError('')
     try {
@@ -118,27 +129,38 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
         body: JSON.stringify({
           amount: amountToCharge,
           phoneNumber: phone,
+          channel: momoChannel,
           description: `Payment of GHS ${amountToCharge.toFixed(2)}`,
           clientReference: ref,
+          ...(recovery ? { intent: 'CUSTOMER_PAYMENT', salePayload: recovery } : {}),
         }),
       })
-      const data = await res.json()
-      if (!res.ok || !data.transactionId) {
+      const data = await res.json().catch(() => null)
+      // Refusals arrive as success:false with a 200 so Hubtel's message is not
+      // replaced by a proxy error page. transactionId is absent when a payment
+      // settles instantly, so it cannot be the test.
+      if (!data || data.success === false || (!res.ok && !data.error)) {
         setMomoStatus('failed')
-        setMomoError(data.error || 'Failed to send MoMo request')
+        setMomoError(data?.error || 'Failed to send MoMo request')
         return false
       }
 
-      const txId = data.transactionId
       setMomoStatus('pending')
 
-      // Poll for approval — every 5 s, up to 2 min
+      // The server generates the reference now, so poll with the one it
+      // returned — the ref we sent is not what the row is keyed by. Falls back
+      // for a browser still running older JS through a deploy.
+      const pollRef: string = data.clientReference ?? ref
+
+      // Poll for approval until the shared cap (5 minutes).
       return await new Promise<boolean>((resolve) => {
         let attempts = 0
         const interval = setInterval(async () => {
           attempts++
           try {
-            const sr = await fetch(`/api/momo/status?transactionId=${encodeURIComponent(txId)}`)
+            // Keyed by our own reference: Hubtel's status endpoint no longer
+            // accepts their transaction id.
+            const sr = await fetch(`/api/momo/status?clientReference=${encodeURIComponent(pollRef)}`)
             const sd = await sr.json()
             if (sd.status === 'success') {
               clearInterval(interval)
@@ -149,16 +171,18 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
               setMomoStatus('failed')
               setMomoError('Customer declined or payment failed. Try again.')
               resolve(false)
-            } else if (attempts >= 24) {
+            } else if (attempts >= MOMO_POLL_ATTEMPTS) {
               clearInterval(interval)
               setMomoStatus('failed')
-              setMomoError('MoMo request timed out. Ask the customer to try again.')
+              setMomoError(
+                `No response after ${MOMO_POLL_TIMEOUT_MINUTES} minutes. If the customer approves late the payment will still go through, so check before charging again.`
+              )
               resolve(false)
             }
           } catch {
             // network hiccup — keep polling
           }
-        }, 5000)
+        }, MOMO_POLL_INTERVAL_MS)
       })
     } catch {
       setMomoStatus('failed')
@@ -185,7 +209,16 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
         setFormError('Enter the customer MoMo phone number first')
         return
       }
-      const approved = await runMomoCollect(amount, momoPhone.trim(), ref)
+      const approved = await runMomoCollect(
+        amount,
+        momoPhone.trim(),
+        ref,
+        // Customer payments only: recovery replays a balance reduction, which
+        // has no meaning for a payment going out to a supplier.
+        type === 'customer' && selectedEntity
+          ? { customerId: selectedEntity.id, amount, momoPhone: momoPhone.trim() }
+          : undefined,
+      )
       if (!approved) return
     }
 
@@ -535,8 +568,15 @@ export function PaymentForm({ type, entities, onSubmit, onCancel, preselectedId 
 
       <MomoPhoneModal
         open={momoPhoneModalOpen}
+        // No gateway means no prompt is sent, so there is nothing to verify.
+        skipVerification={!momoCollectEnabled}
         initialValue={momoPhone}
-        onAccept={(phone) => { setMomoPhone(phone); setMomoStatus('idle'); setMomoError('') }}
+        onAccept={(phone, channel) => {
+          setMomoPhone(phone)
+          setMomoChannel(channel)
+          setMomoStatus('idle')
+          setMomoError('')
+        }}
         onClose={() => setMomoPhoneModalOpen(false)}
       />
     </form>

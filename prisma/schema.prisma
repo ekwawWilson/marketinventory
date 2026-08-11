@@ -217,6 +217,7 @@ model Tenant {
   status    TenantStatus @default(TRIAL)
   users     User[]
   branches  Branch[]
+  momoTransactions MomoTransaction[]
   createdAt DateTime     @default(now())
 
   // Receipt Settings
@@ -243,6 +244,15 @@ model Tenant {
   hubtelClientId         String?
   hubtelClientSecret     String?
   hubtelSenderId         String? // e.g. "MYBIZ" (max 11 chars, no spaces)
+  // Hubtel Collection Account Number, e.g. "11684". Required in the path of the
+  // Verification API, which sits on a different host to the payment API and
+  // identifies the merchant by account rather than by credentials alone.
+  hubtelCollectionAccount String?
+  // Where Hubtel reports the outcome of a payment, e.g.
+  // https://citizen-pos.eyosolutions.com/api/momo/callback
+  // Sent with each collect request. Stored rather than hardcoded because the
+  // domain differs per deployment.
+  hubtelCallbackUrl       String?
 
   // WhatsApp Notifications — Meta WhatsApp Business Cloud API
   enableWhatsApp         Boolean @default(false)
@@ -328,6 +338,7 @@ model User {
   approvedTransactions TransactionApproval[] @relation("ApprovedBy")
   createdTransactions  TransactionApproval[] @relation("CreatedBy")
   salesCreated         Sale[]               @relation("SaleCreatedBy")
+  momoTransactions     MomoTransaction[]    @relation("MomoTransactionCreatedBy")
 }
 
 // =====================
@@ -345,6 +356,18 @@ model Branch {
   createdAt DateTime @default(now())
 
   users User[]
+
+  // Foreign keys, so a branch cannot be deleted out from under its records and
+  // a bad branchId cannot be stored. onDelete: Restrict is deliberate — the
+  // delete handler already refuses when records exist and explains what is in
+  // the way; this is the guarantee behind that check, not a silent cascade
+  // that would destroy a branch's history.
+  items           Item[]
+  sales           Sale[]
+  purchases       Purchase[]
+  expenses        Expense[]
+  stockAdjustments StockAdjustment[]
+  momoTransactions MomoTransaction[]
 }
 
 // =====================
@@ -384,6 +407,7 @@ model Item {
   id             String       @id @default(uuid())
   tenantId       String
   branchId       String?
+  branch         Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   manufacturerId String
   manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id])
   categoryId     String?
@@ -421,6 +445,8 @@ model Item {
   customerReturns  CustomerReturn[]
   supplierReturns  SupplierReturn[]
   stockAdjustments StockAdjustment[]
+
+  @@index([tenantId, branchId])
 }
 
 // =====================
@@ -463,6 +489,7 @@ model Sale {
   id            String           @id @default(uuid())
   tenantId      String
   branchId      String? // optional: which branch this sale was made at
+  branch        Branch?          @relation(fields: [branchId], references: [id], onDelete: Restrict)
   customerId    String?
   customer      Customer?        @relation(fields: [customerId], references: [id])
   subtotalAmount Float           @default(0)
@@ -491,6 +518,9 @@ model Sale {
   createdBy        User?           @relation("SaleCreatedBy", fields: [createdById], references: [id])
 
   @@index([tenantId, approvalStatus])
+  // Every branch view filters on this; without it each one scans the tenant's
+  // whole sales history.
+  @@index([tenantId, branchId])
 }
 
 model SaleItem {
@@ -517,6 +547,7 @@ model Purchase {
   id          String           @id @default(uuid())
   tenantId    String
   branchId    String? // optional: which branch received this purchase
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   supplierId  String
   supplier    Supplier         @relation(fields: [supplierId], references: [id])
   totalAmount Float
@@ -528,6 +559,8 @@ model Purchase {
   createdAt   DateTime         @default(now())
   items       PurchaseItem[]
   returns     SupplierReturn[]
+
+  @@index([tenantId, branchId])
 }
 
 model PurchaseItem {
@@ -619,6 +652,7 @@ model StockAdjustment {
   id               String              @id @default(uuid())
   tenantId         String
   branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   itemId           String
   userId           String?
   type             StockAdjustmentType
@@ -701,6 +735,7 @@ model Expense {
   id          String          @id @default(uuid())
   tenantId    String
   branchId    String? // optional: which branch incurred this expense
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
   amount      Float
   category    ExpenseCategory
   description String
@@ -709,6 +744,8 @@ model Expense {
   method      PaymentMethod   @default(CASH)
   paidBy      String?
   createdAt   DateTime        @default(now())
+
+  @@index([tenantId, branchId])
 }
 
 // =====================
@@ -1762,4 +1799,72 @@ model WaybillItem {
   notes       String?
 
   @@index([waybillId])
+}
+
+/// A MoMo payment prompt sent to a customer, recorded before Hubtel is called.
+///
+/// Without this row a payment is only ever known to the browser that started
+/// it: the reference is generated at the till and the sale is written after
+/// polling succeeds. A till that loses power or closes its tab in the ~30s
+/// before the customer approves therefore takes the money and records nothing.
+///
+/// Writing first also gives Hubtel's callback something to match on. Their docs
+/// treat the callback as the primary signal and the status endpoint as a
+/// fallback for when no callback arrives within five minutes; without a row to
+/// look up we could only run the fallback.
+model MomoTransaction {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String?
+  branch   Branch?  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  /// Our own reference, sent to Hubtel as ClientReference and used to match the
+  /// callback. Unique so a retry cannot create a second charge for one sale.
+  clientReference String @unique
+
+  phoneNumber String
+  channel     String // mtn-gh | vodafone-gh | tigo-gh
+  amount      Float
+
+  status        MomoTransactionStatus @default(PENDING)
+  transactionId String?               // Hubtel's TransactionId
+  externalTransactionId String?        // the telco's reference
+  amountCharged Float?                // what the customer actually paid, incl. charges
+  failureReason String?
+
+  /// What to record once payment is confirmed: SALE for a POS sale,
+  /// CUSTOMER_PAYMENT for a customer settling a balance. Null when the caller
+  /// sent no payload and will record the outcome itself.
+  intent   MomoIntent?
+
+  /// The request body to replay once payment is confirmed, as JSON. Held here
+  /// rather than only in the browser so a callback can finish what the till
+  /// never came back for.
+  salePayload String?
+
+  /// Set once the sale exists, whether the till or the callback created it.
+  /// Doubles as the guard against creating it twice.
+  saleId String? @unique
+
+  createdById String?
+  createdBy   User?   @relation("MomoTransactionCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+enum MomoIntent {
+  SALE
+  CUSTOMER_PAYMENT
+}
+
+enum MomoTransactionStatus {
+  PENDING // prompt sent, customer has not answered
+  SUCCESS // Hubtel confirmed payment
+  FAILED // declined, cancelled, or expired
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/permissions/rbac'
 import { prisma } from '@/lib/db/prisma'
-import { requireBranchAccess } from '@/lib/branch/server'
+import { canAccessBranch, requireBranchAccess } from '@/lib/branch/server'
 
 /**
  * /api/branches/[id]
@@ -36,6 +36,15 @@ export async function GET(
       return NextResponse.json({ error: 'Branch not found' }, { status: 404 })
     }
 
+    // This includes the branch's staff list — names, emails and roles — so
+    // tenant membership alone is not enough to read it.
+    if (context!.branchesEnabled && !canAccessBranch(context!, id)) {
+      return NextResponse.json(
+        { error: 'You do not have access to this branch' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(branch)
   } catch (err) {
     console.error('Failed to fetch branch:', err)
@@ -55,6 +64,16 @@ export async function PUT(
     if (!authorized) return permError!
 
     const { id } = await params
+
+    // Renaming, re-defaulting or deleting a branch is company administration.
+    // manage_settings alone let a branch manager do it to any branch in the
+    // tenant, including one they cannot even see.
+    if (!context!.canViewAllBranches) {
+      return NextResponse.json(
+        { error: 'Only the business owner can change branches' },
+        { status: 403 }
+      )
+    }
     const body = await req.json()
 
     const branch = await prisma.branch.findFirst({
@@ -137,6 +156,16 @@ export async function DELETE(
     if (!authorized) return permError!
 
     const { id } = await params
+
+    // Renaming, re-defaulting or deleting a branch is company administration.
+    // manage_settings alone let a branch manager do it to any branch in the
+    // tenant, including one they cannot even see.
+    if (!context!.canViewAllBranches) {
+      return NextResponse.json(
+        { error: 'Only the business owner can change branches' },
+        { status: 403 }
+      )
+    }
 
     const branch = await prisma.branch.findFirst({
       where: { id, tenantId: context!.tenantId },

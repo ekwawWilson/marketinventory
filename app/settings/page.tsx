@@ -106,6 +106,8 @@ export default async function SettingsPage() {
       enableDiscounts: true,
       enableSmsNotifications: true,
       hubtelClientId: true,
+      hubtelCollectionAccount: true,
+      hubtelCallbackUrl: true,
       hubtelClientSecret: true,
       hubtelSenderId: true,
       enableWhatsApp: true,
@@ -202,6 +204,8 @@ export default async function SettingsPage() {
             hubtelClientIdSet: !!tenant.hubtelClientId,
             hubtelClientSecretSet: !!tenant.hubtelClientSecret,
             hubtelSenderId: tenant.hubtelSenderId,
+            hubtelCollectionAccount: tenant.hubtelCollectionAccount,
+            hubtelCallbackUrl: tenant.hubtelCallbackUrl,
           }}
         />
 

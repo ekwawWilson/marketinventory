@@ -96,6 +96,9 @@ export async function requireBranchAccess(): Promise<{
     }
   }
 
+  // Computed after currentBranchId below would read better, but the branch
+  // resolution needs the full list first. Filtered again at the return for the
+  // unassigned case, where currentBranchId comes from the default fallback.
   const visibleBranches =
     assignedBranchId && !canViewAllBranches
       ? allBranches.filter((branch) => branch.id === assignedBranchId)
@@ -134,12 +137,18 @@ export async function requireBranchAccess(): Promise<{
       rolePermissions: base.rolePermissions as RolePermissionsMap | null,
       features,
       branchesEnabled,
-      branches: visibleBranches,
+      branches: canViewAllBranches
+        ? visibleBranches
+        : visibleBranches.filter((branch) => branch.id === currentBranchId),
       currentBranchId,
       currentBranch,
       assignedBranchId,
       canViewAllBranches,
-      isBranchLocked: Boolean(assignedBranchId && !canViewAllBranches),
+      // Anyone who cannot view all branches is locked to the one branch they
+      // are on, whether that came from their assignment or the default
+      // fallback. Keying this on assignedBranchId alone left an unassigned
+      // cashier able to switch branches from the top bar.
+      isBranchLocked: !canViewAllBranches,
       allBranchesSelected: branchesEnabled && canViewAllBranches && currentBranchId === null,
     },
   }
@@ -151,6 +160,21 @@ export function applyBranchScope<T extends Record<string, unknown>>(
 ): T & { branchId?: string | null } {
   if (!isBranchFilterActive(context)) {
     return where as T & { branchId?: string | null }
+  }
+
+  // The filter is active but no branch is resolved. Passing currentBranchId
+  // straight through would emit `branchId: null`, which is not a denial — it
+  // matches every record that has no branch, so an orphaned row would leak into
+  // a view the caller should not see. Match nothing instead.
+  //
+  // Reaching here means the context is inconsistent (branches on, filter
+  // active, no branch), so it is logged rather than passing quietly.
+  if (!context.currentBranchId) {
+    console.error(
+      '[branch-scope] Branch filter active with no current branch; denying. ' +
+        `tenant=${context.tenantId} user=${context.user?.id ?? 'unknown'}`
+    )
+    return { ...where, branchId: '__no_branch__' }
   }
 
   return {

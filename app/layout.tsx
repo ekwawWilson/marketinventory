@@ -117,15 +117,18 @@ export default async function RootLayout({
           }
 
           branchState = {
-            branches:
-              assignedBranchId && !canViewAllBranches
-                ? allBranches.filter((branch) => branch.id === assignedBranchId)
-                : allBranches,
+            // Mirrors lib/branch/server.ts: anyone without cross-branch access
+            // sees only the branch they are on, and cannot switch away from it.
+            // Keying either of these on assignedBranchId alone let an
+            // unassigned cashier list and switch to every branch.
+            branches: canViewAllBranches
+              ? allBranches
+              : allBranches.filter((branch) => branch.id === currentBranchId),
             branchesEnabled: true,
             currentBranchId,
             assignedBranchId,
             canViewAllBranches,
-            isBranchLocked: Boolean(assignedBranchId && !canViewAllBranches),
+            isBranchLocked: !canViewAllBranches,
           }
         }
       }
