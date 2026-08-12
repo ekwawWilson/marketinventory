@@ -22,7 +22,7 @@ concurrency:
 jobs:
   verify:
     name: Typecheck, lint and build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
 
     env:
       # Placeholders only — CI never touches a real database. `next build` needs
@@ -64,7 +64,7 @@ jobs:
 
   audit:
     name: Dependency audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     steps:
       - uses: actions/checkout@v4
 
@@ -163,7 +163,7 @@ jobs:
     name: Apply database migrations
     needs: [publish]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     environment: production # gate this with a required reviewer if you want a manual check
 
     concurrency:
@@ -202,7 +202,7 @@ jobs:
     name: Apply demo database migrations
     needs: [publish]
     if: github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     environment: staging
 
     concurrency:
