@@ -41,8 +41,25 @@ const HUBTEL_CALLBACK_IP = '18.202.122.131'
 
 function callerIp(req: Request): string | null {
   const forwarded = req.headers.get('x-forwarded-for')
-  // The left-most entry is the original client; the rest are proxies.
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? null
+  /**
+   * The RIGHT-most entry, not the left-most.
+   *
+   * X-Forwarded-For is appended to, never replaced: our ingress adds the peer it
+   * actually saw to whatever the client already sent. So the LEFT-most value is
+   * attacker-supplied — a request carrying
+   * `X-Forwarded-For: 18.202.122.131` arrives here as
+   * `18.202.122.131, <real client>` and reading position 0 hands a forger the
+   * exact address this check exists to verify. With the webhook token unset,
+   * that was the only control on an endpoint that settles payments.
+   *
+   * The last entry is the hop our own proxy appended, which a client cannot
+   * influence. Caddy sets `trusted_proxies static private_ranges`, so nothing
+   * between it and this process can inject one either.
+   */
+  if (forwarded) {
+    const hops = forwarded.split(',').map((h) => h.trim()).filter(Boolean)
+    return hops[hops.length - 1] ?? null
+  }
   return req.headers.get('x-real-ip')
 }
 

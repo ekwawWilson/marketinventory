@@ -22,7 +22,7 @@ concurrency:
 jobs:
   verify:
     name: Typecheck, lint and build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
 
     env:
       # Placeholders only — CI never touches a real database. `next build` needs
@@ -64,7 +64,7 @@ jobs:
 
   audit:
     name: Dependency audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     steps:
       - uses: actions/checkout@v4
 
@@ -163,7 +163,7 @@ jobs:
     name: Apply database migrations
     needs: [publish]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     environment: production # gate this with a required reviewer if you want a manual check
 
     concurrency:
@@ -172,6 +172,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the destructive-migration guard diffs this push
+          # against the commit before it. At the default depth of 1 that diff
+          # finds nothing and the guard passes silently — which is worse than
+          # not having it, because the run goes green either way.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -179,6 +185,70 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # ── What is about to happen to the client's database ──────────────────
+      # Printed before anything is applied, so the run log answers "what did
+      # that deploy do to production" without anyone reconstructing it later.
+      - name: Show pending migrations
+        run: npx prisma migrate status || true
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      # ── Refuse destructive DDL unless a human said so ─────────────────────
+      #
+      # Required reviewers on an environment need a paid plan, so the gate is
+      # here instead — and aimed only at the migrations that can actually break
+      # the live system, rather than adding friction to every deploy.
+      #
+      # Why destructive DDL specifically: the migration runs BEFORE the fleet
+      # pulls the new image, and the pool converges one box at a time. So for a
+      # few minutes the client's OLD code runs against the NEW schema. Adding a
+      # column survives that. Dropping or renaming one takes the live system
+      # down for real users, mid-deploy.
+      #
+      # Override by putting [destructive-ok] in the merge commit message. That
+      # keeps the decision in git history, attributed, next to the change.
+      - name: Refuse destructive migrations without an explicit override
+        run: |
+          before='${{ github.event.before }}'
+          # A new branch or a force-push has no usable "before"; fall back to
+          # the previous commit rather than diffing against nothing.
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            before="$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)"
+          fi
+          added=$(git diff --name-only --diff-filter=A "$before" "$GITHUB_SHA" -- 'prisma/migrations/**/*.sql' || true)
+          if [ -z "$added" ]; then
+            echo "No new migrations in this push."
+            exit 0
+          fi
+          echo "New migrations:"; echo "$added" | sed 's/^/  /'
+          # Word boundaries matter: "DROP" alone matches DROP INDEX and
+          # DROP CONSTRAINT, which are not data loss.
+          risky=$(grep -inE 'DROP[[:space:]]+(TABLE|COLUMN)|ALTER[[:space:]]+TABLE[^;]*DROP[[:space:]]+COLUMN|RENAME[[:space:]]+(TO|COLUMN)|TRUNCATE' $added || true)
+          if [ -z "$risky" ]; then
+            echo "All additive — proceeding."
+            exit 0
+          fi
+          echo
+          echo "DESTRUCTIVE STATEMENTS FOUND:"
+          echo "$risky" | sed 's/^/  /'
+          if git log -1 --pretty=%B "$GITHUB_SHA" | grep -qF '[destructive-ok]'; then
+            echo
+            echo "Override present in the commit message — proceeding."
+            exit 0
+          fi
+          echo
+          echo "REFUSING to apply these to the client's live database."
+          echo
+          echo "The migration runs before the fleet pulls the new image, and the"
+          echo "pool converges one box at a time — so the OLD code will run"
+          echo "against this schema for a few minutes. A dropped or renamed"
+          echo "column is an outage for real users in that window."
+          echo
+          echo "Split it expand/contract across two releases, or if you are"
+          echo "certain, put [destructive-ok] in the merge commit message."
+          exit 1
 
       # The DIRECT (non-pooled) endpoint: DDL cannot run through a transaction
       # pooler. See DEPLOYMENT.md.
@@ -202,7 +272,7 @@ jobs:
     name: Apply demo database migrations
     needs: [publish]
     if: github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, eyo]
     environment: staging
 
     concurrency:
