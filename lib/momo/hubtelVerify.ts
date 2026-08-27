@@ -51,6 +51,12 @@ export interface MomoVerifyResult {
   profile?: string
   /** Hubtel's own message where present — it is written for operators. */
   error?: string
+  /** The exact URL called — omits nothing but the secret, which never appears in it. */
+  requestUrl?: string
+  /** HTTP status Hubtel responded with, when a response was received at all. */
+  httpStatus?: number
+  /** Hubtel's response body, untouched — for reporting the exact error to Hubtel support. */
+  raw?: unknown
 }
 
 // A hanging verification must never hold up a sale.
@@ -84,7 +90,14 @@ export async function verifyMomoNumber(
       signal: controller.signal,
     })
 
-    const data = await res.json().catch(() => null)
+    const rawText = await res.text()
+    const data = (() => {
+      try {
+        return JSON.parse(rawText)
+      } catch {
+        return null
+      }
+    })()
 
     if (!res.ok) {
       return {
@@ -94,6 +107,9 @@ export async function verifyMomoNumber(
           (res.status === 401 || res.status === 403
             ? 'Hubtel rejected the request. Check the credentials, and that this server’s IP is whitelisted.'
             : `Verification unavailable (HTTP ${res.status})`),
+        requestUrl: url,
+        httpStatus: res.status,
+        raw: data ?? rawText,
       }
     }
 
@@ -103,6 +119,9 @@ export async function verifyMomoNumber(
       return {
         success: false,
         error: data?.message || 'This number could not be verified.',
+        requestUrl: url,
+        httpStatus: res.status,
+        raw: data ?? rawText,
       }
     }
 
@@ -113,14 +132,18 @@ export async function verifyMomoNumber(
       status: data.data.status || undefined,
       // profile is v2-only; tolerate its absence rather than showing "undefined".
       profile: data.data.profile || undefined,
+      requestUrl: url,
+      httpStatus: res.status,
+      raw: data,
     }
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      return { success: false, error: 'Verification timed out.' }
+      return { success: false, error: 'Verification timed out.', requestUrl: url }
     }
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Verification failed.',
+      requestUrl: url,
     }
   } finally {
     clearTimeout(timer)

@@ -1,8 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import { MOMO_CHANNELS, type MomoChannel } from '@/lib/momo/hubtelVerify'
 
 const MASKED = '••••••••'
+
+interface VerifyTestResult {
+  success: boolean
+  isRegistered?: boolean
+  name?: string
+  status?: string
+  profile?: string
+  error?: string
+  requestUrl?: string
+  httpStatus?: number
+  raw?: unknown
+}
 
 interface DiagnosticProbe {
   service: string
@@ -34,6 +47,83 @@ const VERDICT_STYLES: Record<DiagnosticProbe['verdict'], { border: string; label
   error: { border: 'border-amber-300 bg-amber-50', label: 'Error', tone: 'text-amber-900' },
 }
 
+// Reference payloads for the Hubtel integration checklist ("sample callbacks
+// received" / "sample transaction status check response"). These reflect
+// Hubtel's documented response format as implemented by this app's callback
+// handler and status-check call — not payloads captured from live traffic.
+const HUBTEL_SAMPLES_TEXT = `HUBTEL MOMO INTEGRATION — SAMPLE PAYLOADS
+==========================================
+Reflects Hubtel's documented response format, as parsed by this app's
+Direct Receive Money / Callback / Transaction Status Check integration.
+
+------------------------------------------
+1. PAYMENT CALLBACK — Successful payment
+------------------------------------------
+POST <configured Payment Callback URL>
+
+{
+  "ResponseCode": "0000",
+  "Message": "success",
+  "Data": {
+    "ClientReference": "a1b2c3d4-SALE-1042",
+    "TransactionId": "8a6cd5c6d3f24e1a9b2c",
+    "ExternalTransactionId": "MP2508261432107",
+    "Amount": 150.00,
+    "Charges": 1.50,
+    "AmountAfterCharges": 148.50,
+    "AmountCharged": 150.00,
+    "OrderId": "a1b2c3d4-SALE-1042",
+    "PaymentDate": "2026-08-26T14:32:10",
+    "Description": "POS Sale #1042",
+    "CustomerMsisdn": "233244123456",
+    "Status": "Success"
+  }
+}
+
+------------------------------------------
+2. PAYMENT CALLBACK — Failed payment
+------------------------------------------
+POST <configured Payment Callback URL>
+
+{
+  "ResponseCode": "2001",
+  "Message": "The customer did not have sufficient funds to complete this transaction",
+  "Data": {
+    "ClientReference": "a1b2c3d4-SALE-1042",
+    "TransactionId": "8a6cd5c6d3f24e1a9b2c",
+    "Amount": 150.00,
+    "OrderId": "a1b2c3d4-SALE-1042",
+    "PaymentDate": "2026-08-26T14:32:40",
+    "Description": "POS Sale #1042",
+    "CustomerMsisdn": "233244123456",
+    "Status": "Failed"
+  }
+}
+
+------------------------------------------
+3. TRANSACTION STATUS CHECK — Response
+------------------------------------------
+GET https://api-txnstatus.hubtel.com/transactions/{account}/status?clientReference={ref}
+
+{
+  "ResponseCode": "0000",
+  "Message": "Success",
+  "Data": {
+    "Date": "2026-08-26T14:32:10",
+    "Status": "Paid",
+    "TransactionId": "8a6cd5c6d3f24e1a9b2c",
+    "ExternalTransactionId": "MP2508261432107",
+    "PaymentMethod": "mtn-gh",
+    "CustomerPhoneNumber": "233244123456",
+    "Amount": 150.00,
+    "Charges": 1.50,
+    "AmountAfterCharges": 148.50,
+    "ClientReference": "a1b2c3d4-SALE-1042",
+    "IsFulfilled": true
+  }
+}
+`
+
 interface SmsSettingsProps {
   tenantId: string
   initialSettings: {
@@ -60,10 +150,20 @@ export function SmsSettings({ tenantId, initialSettings }: SmsSettingsProps) {
   const [isTesting, setIsTesting] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [testMsg, setTestMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showId, setShowId] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
+  const [credentialsRevealed, setCredentialsRevealed] = useState(false)
+  const [isRevealing, setIsRevealing] = useState(false)
   const [isDiagnosing, setIsDiagnosing] = useState(false)
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showSamples, setShowSamples] = useState(false)
+  const [samplesCopied, setSamplesCopied] = useState(false)
+  const [verifyPhone, setVerifyPhone] = useState('')
+  const [verifyChannel, setVerifyChannel] = useState<MomoChannel>('mtn-gh')
+  const [isVerifyTesting, setIsVerifyTesting] = useState(false)
+  const [verifyTestResult, setVerifyTestResult] = useState<VerifyTestResult | null>(null)
+  const [verifyResultCopied, setVerifyResultCopied] = useState(false)
 
   const runDiagnostics = async () => {
     setIsDiagnosing(true)
@@ -96,6 +196,88 @@ export function SmsSettings({ tenantId, initialSettings }: SmsSettingsProps) {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard blocked — the address is on screen to read off anyway.
+    }
+  }
+
+  // The initial page load only ever gets hubtelClientIdSet/hubtelClientSecretSet
+  // booleans — the real values never reach the browser until this is called.
+  // Fetched once and cached in state; a second Show just re-toggles visibility.
+  const revealCredentials = async (): Promise<boolean> => {
+    if (credentialsRevealed) return true
+    setIsRevealing(true)
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/hubtel-credentials`)
+      const data = await res.json()
+      if (!res.ok) {
+        setSaveMsg({ type: 'error', text: data.error || 'Could not reveal credentials.' })
+        return false
+      }
+      setClientId(data.hubtelClientId || '')
+      setClientSecret(data.hubtelClientSecret || '')
+      setCredentialsRevealed(true)
+      return true
+    } catch {
+      setSaveMsg({ type: 'error', text: 'Could not reach the server to reveal credentials.' })
+      return false
+    } finally {
+      setIsRevealing(false)
+    }
+  }
+
+  const toggleShowId = async () => {
+    if (!showId && !credentialsRevealed && clientId === MASKED) {
+      const ok = await revealCredentials()
+      if (!ok) return
+    }
+    setShowId((v) => !v)
+  }
+
+  const toggleShowSecret = async () => {
+    if (!showSecret && !credentialsRevealed && clientSecret === MASKED) {
+      const ok = await revealCredentials()
+      if (!ok) return
+    }
+    setShowSecret((v) => !v)
+  }
+
+  const runVerifyTest = async () => {
+    if (!verifyPhone.trim()) return
+    setIsVerifyTesting(true)
+    setVerifyTestResult(null)
+    setVerifyResultCopied(false)
+    try {
+      const res = await fetch('/api/momo/verify-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: verifyPhone.trim(), channel: verifyChannel }),
+      })
+      const data = await res.json()
+      setVerifyTestResult(data)
+    } catch {
+      setVerifyTestResult({ success: false, error: 'Could not reach the server to run the test.' })
+    } finally {
+      setIsVerifyTesting(false)
+    }
+  }
+
+  const copyVerifyResult = async () => {
+    if (!verifyTestResult) return
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(verifyTestResult, null, 2))
+      setVerifyResultCopied(true)
+      setTimeout(() => setVerifyResultCopied(false), 2000)
+    } catch {
+      // Clipboard blocked — the JSON is on screen to select by hand anyway.
+    }
+  }
+
+  const copySamples = async () => {
+    try {
+      await navigator.clipboard.writeText(HUBTEL_SAMPLES_TEXT)
+      setSamplesCopied(true)
+      setTimeout(() => setSamplesCopied(false), 2000)
+    } catch {
+      // Clipboard blocked — the text is on screen to select by hand anyway.
     }
   }
 
@@ -177,13 +359,26 @@ export function SmsSettings({ tenantId, initialSettings }: SmsSettingsProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Hubtel Client ID</label>
-            <input
-              type="text"
-              value={clientId}
-              onChange={e => setClientId(e.target.value)}
-              placeholder="e.g. HBT-XXXXXXXX"
-              className="w-full px-4 py-2.5 border-2 border-gray-200 focus:border-green-500 focus:outline-none text-sm font-mono"
-            />
+            <div className="relative">
+              <input
+                type={showId ? 'text' : 'password'}
+                value={clientId}
+                onChange={e => {
+                  setClientId(e.target.value)
+                  setCredentialsRevealed(true) // typed by hand — this is now the real value, nothing left to reveal
+                }}
+                placeholder="e.g. HBT-XXXXXXXX"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 focus:border-green-500 focus:outline-none text-sm font-mono pr-14"
+              />
+              <button
+                type="button"
+                onClick={() => void toggleShowId()}
+                disabled={isRevealing}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 font-semibold disabled:opacity-50"
+              >
+                {isRevealing && !showId ? '…' : showId ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Hubtel Client Secret</label>
@@ -191,13 +386,20 @@ export function SmsSettings({ tenantId, initialSettings }: SmsSettingsProps) {
               <input
                 type={showSecret ? 'text' : 'password'}
                 value={clientSecret}
-                onChange={e => setClientSecret(e.target.value)}
+                onChange={e => {
+                  setClientSecret(e.target.value)
+                  setCredentialsRevealed(true)
+                }}
                 placeholder="Your Hubtel secret"
-                className="w-full px-4 py-2.5 border-2 border-gray-200 focus:border-green-500 focus:outline-none text-sm font-mono pr-12"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 focus:border-green-500 focus:outline-none text-sm font-mono pr-14"
               />
-              <button type="button" onClick={() => setShowSecret(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 font-semibold">
-                {showSecret ? 'Hide' : 'Show'}
+              <button
+                type="button"
+                onClick={() => void toggleShowSecret()}
+                disabled={isRevealing}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 font-semibold disabled:opacity-50"
+              >
+                {isRevealing && !showSecret ? '…' : showSecret ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
@@ -354,6 +556,161 @@ export function SmsSettings({ tenantId, initialSettings }: SmsSettingsProps) {
                   on in Settings &rarr; Features.
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Verification API test — the exact error, for reporting to Hubtel. */}
+        <div className="border-t border-gray-200 pt-5">
+          <h3 className="text-base font-bold text-gray-800">Test Verification</h3>
+          <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+            Runs a real call to Hubtel&apos;s Mobile Money Verification API and shows the
+            exact response &mdash; HTTP status, the request URL, and Hubtel&apos;s raw
+            body &mdash; instead of the friendly message a cashier sees. Use this to get the
+            precise error to report to Hubtel.
+          </p>
+
+          <div className="flex flex-wrap items-end gap-3 mt-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Network</label>
+              <div className="flex gap-1">
+                {MOMO_CHANNELS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setVerifyChannel(c.value)}
+                    className={`px-3 py-2 text-xs font-bold ${
+                      verifyChannel === c.value
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Phone number</label>
+              <input
+                type="tel"
+                value={verifyPhone}
+                onChange={e => setVerifyPhone(e.target.value)}
+                placeholder="e.g. 0244123456"
+                className="px-4 py-2.5 border-2 border-gray-200 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={runVerifyTest}
+              disabled={isVerifyTesting || !verifyPhone.trim()}
+              className="px-4 py-2.5 bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 text-sm whitespace-nowrap"
+            >
+              {isVerifyTesting ? 'Running…' : 'Run Test'}
+            </button>
+          </div>
+
+          {verifyTestResult && (
+            <div className="mt-4 max-w-2xl space-y-3">
+              <div
+                className={`border-2 px-4 py-3 ${
+                  verifyTestResult.success
+                    ? 'border-green-300 bg-green-50'
+                    : 'border-red-300 bg-red-50'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <p
+                    className={`font-bold text-sm ${
+                      verifyTestResult.success ? 'text-green-800' : 'text-red-800'
+                    }`}
+                  >
+                    {verifyTestResult.success ? 'Verified' : 'Failed'}
+                  </p>
+                  {typeof verifyTestResult.httpStatus === 'number' && (
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wide ${
+                        verifyTestResult.success ? 'text-green-800' : 'text-red-800'
+                      }`}
+                    >
+                      HTTP {verifyTestResult.httpStatus}
+                    </span>
+                  )}
+                </div>
+                {verifyTestResult.error && (
+                  <p className="text-xs mt-1 text-red-800">{verifyTestResult.error}</p>
+                )}
+                {verifyTestResult.success && (
+                  <p className="text-xs mt-1 text-green-800">
+                    {[verifyTestResult.name, verifyTestResult.profile, verifyTestResult.status]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
+              </div>
+
+              {verifyTestResult.requestUrl && (
+                <p className="text-xs text-gray-500 font-mono break-all">
+                  {verifyTestResult.requestUrl}
+                </p>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                    Raw response (exact error, for Hubtel)
+                  </p>
+                  <button
+                    type="button"
+                    onClick={copyVerifyResult}
+                    className="px-3 py-1.5 border-2 border-gray-300 text-gray-800 text-xs font-bold hover:bg-gray-100"
+                  >
+                    {verifyResultCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <pre className="border-2 border-gray-200 bg-gray-50 p-4 text-xs font-mono text-gray-800 whitespace-pre-wrap overflow-x-auto max-h-96 overflow-y-auto">
+                  {JSON.stringify(verifyTestResult, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sample payloads for Hubtel's go-live checklist — copy/paste for their officers. */}
+        <div className="border-t border-gray-200 pt-5">
+          <h3 className="text-base font-bold text-gray-800">Hubtel Integration Documentation</h3>
+          <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+            Sample callback and transaction status check payloads for Hubtel&apos;s integration
+            checklist. These follow Hubtel&apos;s documented response format as this app parses
+            it &mdash; not payloads captured from live traffic, since no real transaction has
+            gone through yet.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowSamples(v => !v)}
+            className="mt-3 px-4 py-2.5 bg-gray-800 text-white font-bold hover:bg-gray-900 text-sm"
+          >
+            {showSamples ? 'Hide Sample Payloads' : 'Show Sample Payloads'}
+          </button>
+
+          {showSamples && (
+            <div className="mt-4 max-w-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  Callback &amp; status check samples
+                </p>
+                <button
+                  type="button"
+                  onClick={copySamples}
+                  className="px-3 py-1.5 border-2 border-gray-300 text-gray-800 text-xs font-bold hover:bg-gray-100"
+                >
+                  {samplesCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="border-2 border-gray-200 bg-gray-50 p-4 text-xs font-mono text-gray-800 whitespace-pre-wrap overflow-x-auto max-h-96 overflow-y-auto">
+                {HUBTEL_SAMPLES_TEXT}
+              </pre>
             </div>
           )}
         </div>
