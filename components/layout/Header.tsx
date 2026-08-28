@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useState } from 'react'
+import { useTenant } from '@/hooks/useTenant'
+import { useBranch } from '@/lib/branch/BranchContext'
 import { BranchSelector } from '@/components/layout/BranchSelector'
 import { useSidebar } from '@/lib/sidebar/SidebarContext'
 import { useSessionGuard } from '@/lib/session/SessionGuard'
@@ -49,6 +51,8 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { toggle } = useSidebar()
   const { openSignOut } = useSessionGuard()
+  const { tenantName } = useTenant()
+  const { branchesEnabled, currentBranch, canViewAllBranches } = useBranch()
 
   const pageTitle = Object.entries(PAGE_TITLES).find(([key]) =>
     pathname === key || pathname?.startsWith(key + '/')
@@ -56,6 +60,7 @@ export function Header() {
 
   const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const roleLabel = user?.role?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) ?? ''
+  const branchLabel = branchesEnabled ? currentBranch?.name ?? (canViewAllBranches ? 'All Branches' : null) : null
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
@@ -70,15 +75,26 @@ export function Header() {
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Page title */}
-          <h1 className="text-sm font-semibold text-gray-900 hidden md:block">{pageTitle}</h1>
+          {/* Company name — always visible */}
+          <span className="text-sm font-bold text-gray-900 truncate max-w-[40vw] sm:max-w-none">
+            {tenantName ?? 'My Business'}
+          </span>
 
-          {/* Mobile: app name */}
-          <span className="text-sm font-bold text-gray-900 md:hidden">My Business</span>
+          {/* Page title */}
+          <h1 className="text-sm font-semibold text-gray-500 hidden md:block md:pl-3 md:ml-1 md:border-l md:border-gray-200">
+            {pageTitle}
+          </h1>
 
           <div className="flex-1" />
 
-          {/* Branch selector */}
+          {/* Current branch — always visible, independent of the switcher below */}
+          {branchLabel && (
+            <span className="hidden sm:inline-flex items-center text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 whitespace-nowrap">
+              {branchLabel}
+            </span>
+          )}
+
+          {/* Branch selector — only when there's a choice to make (2+ branches) */}
           <BranchSelector />
 
           {/* User menu */}

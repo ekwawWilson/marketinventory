@@ -30,9 +30,40 @@ export function useTenant() {
   const { data: session, status } = useSession()
   const bootstrap = useTenantBootstrap()
   const tenantId = session?.user?.tenantId ?? bootstrap.tenantId ?? null
-  const tenantName =
-    bootstrap.tenantId && bootstrap.tenantId === tenantId
-      ? bootstrap.tenantName
+  const hasBootstrappedName = Boolean(bootstrap.tenantId) && bootstrap.tenantId === tenantId
+
+  // The root layout only computes tenantName server-side, once, before the
+  // request that rendered it — a client-side login (soft navigation) leaves
+  // this provider un-remounted, so bootstrap never catches up to the new
+  // session's tenant. Without a fetch fallback here the name stays null until
+  // a manual refresh, same failure as the branch context this mirrors.
+  const [fetchedName, setFetchedName] = useState<{ tenantId: string; name: string | null } | null>(null)
+
+  useEffect(() => {
+    if (status === 'loading' || !tenantId) return
+    if (hasBootstrappedName) return
+    if (fetchedName?.tenantId === tenantId) return
+
+    let cancelled = false
+
+    fetch(`/api/tenants/${tenantId}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (cancelled) return
+        setFetchedName({ tenantId, name: data?.name ?? null })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFetchedName({ tenantId, name: null })
+      })
+
+    return () => { cancelled = true }
+  }, [hasBootstrappedName, fetchedName?.tenantId, status, tenantId])
+
+  const tenantName = hasBootstrappedName
+    ? bootstrap.tenantName
+    : fetchedName?.tenantId === tenantId
+      ? fetchedName.name
       : null
 
   return {

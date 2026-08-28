@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { ALL_BRANCHES_SELECTION, BRANCH_SELECTION_COOKIE } from '@/lib/branch/constants'
 
 export interface Branch {
@@ -74,14 +75,23 @@ function writeBranchSelection(value: string | null) {
 interface BranchProviderProps {
   children: ReactNode
   initialState?: BranchBootstrapState
+  /** The tenant `initialState` was computed for server-side, if any. */
+  initialTenantId?: string | null
 }
 
-export function BranchProvider({ children, initialState }: BranchProviderProps) {
+export function BranchProvider({ children, initialState, initialTenantId }: BranchProviderProps) {
   const initialStateRef = useRef(initialState)
   const router = useRouter()
+  const { data: session, status } = useSession()
   // Set once the user picks a branch, so a late /api/branches response cannot
   // overwrite their selection with the value the server had at page load.
   const userSelectedRef = useRef(false)
+  // Tracks which tenant `branches` currently reflects, so a client-side login
+  // (a soft navigation — the root layout, and this provider, never remount)
+  // can detect that the session's tenant has moved on from whatever the page
+  // was server-rendered for and re-fetch, rather than staying frozen on the
+  // signed-out defaults until a manual refresh remounts the provider.
+  const fetchedForTenantIdRef = useRef<string | null>(initialTenantId ?? null)
   const [branches, setBranches] = useState<Branch[]>(() => initialState?.branches ?? [])
   const [branchesEnabled, setBranchesEnabled] = useState(() => initialState?.branchesEnabled ?? false)
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(() => initialState?.currentBranchId ?? null)
@@ -102,9 +112,24 @@ export function BranchProvider({ children, initialState }: BranchProviderProps) 
           : null
       if (saved) writeBranchSelection(saved === ALL_BRANCHES_SELECTION ? null : saved)
     }
-
-    void fetchBranches()
   }, [])
+
+  useEffect(() => {
+    if (status === 'loading') return
+    const tenantId = session?.user?.tenantId ?? null
+    // No session (signed out, or not yet resolved past 'loading') — nothing
+    // to fetch. Also covers the pre-login mount of this provider, whose
+    // initialTenantId is null.
+    if (!tenantId) return
+    // Already have branches for this tenant — either from the server-rendered
+    // initialState, or a fetch this effect already ran.
+    if (fetchedForTenantIdRef.current === tenantId) return
+    fetchedForTenantIdRef.current = tenantId
+    // The signed-out/pre-fetch defaults must not read as "loaded and this
+    // tenant genuinely has branches off" while the real fetch is in flight.
+    setIsLoading(true)
+    void fetchBranches()
+  }, [session?.user?.tenantId, status])
 
   const fetchBranches = async () => {
     try {

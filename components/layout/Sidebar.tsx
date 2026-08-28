@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useUser } from '@/hooks/useUser'
-import { useTenantFeatures } from '@/hooks/useTenant'
+import { useTenant, useTenantFeatures } from '@/hooks/useTenant'
+import { useBranch } from '@/lib/branch/BranchContext'
 import { useSidebar } from '@/lib/sidebar/SidebarContext'
 import { useSessionGuard } from '@/lib/session/SessionGuard'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -33,6 +34,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user } = useUser()
   const { features } = useTenantFeatures()
+  const { tenantName } = useTenant()
+  const { branchesEnabled, currentBranch, canViewAllBranches } = useBranch()
   const { collapsed, toggle } = useSidebar()
   const { openSignOut } = useSessionGuard()
   const role = user?.role || ''
@@ -264,8 +267,12 @@ export function Sidebar() {
                 <LayoutDashboard className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white leading-tight truncate">My Business</p>
-                <p className="text-xs text-slate-400">Management</p>
+                <p className="text-sm font-bold text-white leading-tight truncate">{tenantName ?? 'My Business'}</p>
+                <p className="text-xs text-slate-400 truncate">
+                  {branchesEnabled
+                    ? currentBranch?.name ?? (canViewAllBranches ? 'All Branches' : 'Management')
+                    : 'Management'}
+                </p>
               </div>
               <Tooltip text="Collapse sidebar" enabled={tooltipsEnabled}>
                 <button

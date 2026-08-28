@@ -151,7 +151,7 @@ export default async function RootLayout({
       >
         <SessionProvider session={session}>
           <TenantBootstrapProvider value={{ tenantId, tenantName, features, rolePermissions }}>
-            <BranchProvider initialState={branchState}>
+            <BranchProvider initialState={branchState} initialTenantId={tenantId}>
               <SuspensionGuard>{children}</SuspensionGuard>
             </BranchProvider>
           </TenantBootstrapProvider>
